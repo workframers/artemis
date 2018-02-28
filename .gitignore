@@ -14,3 +14,4 @@ pom.xml.asc
 .hgignore
 .hg/
 /resources/js/
+node_modules/

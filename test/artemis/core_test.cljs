@@ -36,60 +36,121 @@
     (is (false? (core/client? {})))
     (is (false? (core/client? {:store {} :network-chain {}})))))
 
-(defonce mock-cache {:heros {"The Empire Strikes Back" "Luke Skywalker"}})
-(defonce mock-chan  (chan))
-(defonce client     (core/create-client (stub-store mock-cache) (stub-net-chain mock-chan)))
-(defonce doc        (parse-document "query Hero($episode: String!) { hero(episode: $episode) { name } }"))
-(defonce variables  {:episode "The Empire Strikes Back"})
-(defonce query      (partial core/query client doc variables :fetch-policy))
+;; -------------------------
+;; artemis.core/query tests
+;; -------------------------
 
-(deftest query-local-only
-  (async done
-    (go (let [result (<! (query :local-only))]
-          (is (= (:data result) "Luke Skywalker"))
-          (is (= (:variables result) variables))
-          (is (= (:network-status result) :ready))
-          (is (false? (:in-flight? result)))
-          (done)))))
+(defonce mock-cache   {:heros {"The Empire Strikes Back" "Luke Skywalker"}})
+(defonce mock-chan    (chan))
+(defonce client       (core/create-client (stub-store mock-cache) (stub-net-chain mock-chan)))
+(defonce doc          (parse-document "query Hero($episode: String!) { hero(episode: $episode) { name } }"))
+(defonce variables    {:episode "The Empire Strikes Back"})
+(defonce query        (partial core/query client doc variables :fetch-policy))
+(defonce uc-variables {:episode "A New Hope"})
+(defonce uc-query     (partial core/query client doc uc-variables :fetch-policy))
 
-(deftest query-local-then-remote
-  (async done
-    (let [result-chan (query :local-then-remote)]
-      (testing "local results"
-        (go (let [result (<! result-chan)]
-              (is (= (:data result) "Luke Skywalker"))
-              (is (= (:variables result) variables))
-              (is (= (:network-status result) :loading))
-              (is (true? (:in-flight? result))))))
+(deftest query-local-only-cached
+  (testing "local-only when data available"
+    (async done
+      (go (let [result (<! (query :local-only))]
+            (is (= (:data result) "Luke Skywalker"))
+            (is (= (:variables result) variables))
+            (is (= (:network-status result) :ready))
+            (is (false? (:in-flight? result)))
+            (done))))))
 
-      (testing "remote results"
-        (go (let [result (<! result-chan)]
-              (is (= (:data result) "Luke Skywalker"))
-              (is (= (:variables result) variables))
-              (is (= (:network-status result) :ready))
-              (is (false? (:in-flight? result)))
+(deftest query-local-only-not-cached
+  (testing "local-only when data not available"
+    (async done
+      (go (let [result (<! (uc-query :local-only))]
+            (is (nil? (:data result)))
+            (is (= "fail" (:error result)))
+            (is (= (:variables result) uc-variables))
+            (is (= (:network-status result) :ready))
+            (is (false? (:in-flight? result)))
+            (done))))))
+
+(deftest query-local-first-cached
+  (testing "local-first when data available"
+    (async done
+      (go (let [result (<! (query :local-first))]
+            (is (= (:data result) "Luke Skywalker"))
+            (is (= (:variables result) variables))
+            (is (= (:network-status result) :ready))
+            (is (false? (:in-flight? result)))
+            (done))))))
+
+(deftest query-local-first-not-cached
+  (testing "local-first when no data available"
+    (async done
+      (let [result-chan (uc-query :local-first)]
+        (go (let [local-result  (<! result-chan)
+                  remote-result (<! result-chan)]
+              (is (nil? (:data local-result)))
+              (is (= (:variables local-result) uc-variables))
+              (is (= (:network-status local-result) :loading))
+              (is (true? (:in-flight? local-result)))
+
+              (is (= (:data remote-result) "Luke Skywalker"))
+              (is (= (:variables remote-result) uc-variables))
+              (is (= (:network-status remote-result) :ready))
+              (is (false? (:in-flight? remote-result)))
               (done)))
         (put! mock-chan "Luke Skywalker")))))
 
-  (deftest query-remote-only
+(deftest query-local-then-remote-cached
+  (testing "local-then-remote when data available"
     (async done
-      (let [result-chan (query :remote-only)]
-        (testing "initial update"
-          (go (let [result (<! result-chan)]
-                (is (nil? (:data result)))
-                (is (= (:variables result) variables))
-                (is (= (:network-status result) :loading))
-                (is (true? (:in-flight? result))))))
+      (let [result-chan (query :local-then-remote)]
+        (go (let [local-result  (<! result-chan)
+                  remote-result (<! result-chan)]
+              (is (= (:data local-result) "Luke Skywalker"))
+              (is (= (:variables local-result) variables))
+              (is (= (:network-status local-result) :loading))
+              (is (true? (:in-flight? local-result)))
 
-        (testing "remote results"
-          (go (let [result (<! result-chan)]
-                (is (= (:data result) "Luke Skywalker"))
-                (is (= (:variables result) variables))
-                (is (= (:network-status result) :ready))
-                (is (false? (:in-flight? result)))
-                (done)))
-          (put! mock-chan "Luke Skywalker")))))
+              (is (= (:data remote-result) "Luke Skywalker"))
+              (is (= (:variables remote-result) variables))
+              (is (= (:network-status remote-result) :ready))
+              (is (false? (:in-flight? remote-result)))
+              (done)))
+        (put! mock-chan "Luke Skywalker")))))
 
-  (deftest query-invalid
-    (is (thrown-with-msg? ExceptionInfo #"Invalid :fetch-policy provided"
-                          (query :something-else))))
+(deftest query-local-then-remote-not-cached
+  (testing "local-then-remote when data not available"
+    (async done
+      (let [result-chan (uc-query :local-then-remote)]
+        (go (let [local-result  (<! result-chan)
+                  remote-result (<! result-chan)]
+              (is (nil? (:data local-result)))
+              (is (= (:variables local-result) uc-variables))
+              (is (= (:network-status local-result) :loading))
+              (is (true? (:in-flight? local-result)))
+
+              (is (= (:data remote-result) "Luke Skywalker"))
+              (is (= (:variables remote-result) uc-variables))
+              (is (= (:network-status remote-result) :ready))
+              (is (false? (:in-flight? remote-result)))
+              (done)))
+        (put! mock-chan "Luke Skywalker")))))
+
+(deftest query-remote-only
+  (async done
+    (let [result-chan (query :remote-only)]
+      (go (let [local-result  (<! result-chan)
+                remote-result (<! result-chan)]
+            (is (nil? (:data local-result)))
+            (is (= (:variables local-result) variables))
+            (is (= (:network-status local-result) :loading))
+            (is (true? (:in-flight? local-result)))
+
+            (is (= (:data remote-result) "Luke Skywalker"))
+            (is (= (:variables remote-result) variables))
+            (is (= (:network-status remote-result) :ready))
+            (is (false? (:in-flight? remote-result)))
+            (done)))
+      (put! mock-chan "Luke Skywalker"))))
+
+(deftest query-invalid
+  (is (thrown-with-msg? ExceptionInfo #"Invalid :fetch-policy provided"
+                        (query :something-else))))
