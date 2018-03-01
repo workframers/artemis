@@ -5,6 +5,7 @@
             [artemis.network-steps.http :as http]
             [artemis.network-steps.protocols :as np]
             [artemis.document :as d]
+            [artemis.result :refer [result->message]]
             [clojure.spec.alpha :as s]
             [cljs.core.async :as async]
             [cljs.core.async.impl.protocols :refer [WritePort ReadPort]]))
@@ -62,15 +63,6 @@
   "Returns true if x is a valid client."
   [x]
   (instance? Client x))
-
-(defn- ?assoc
-  "Same as assoc, but skip the assoc if v is nil"
-  [m & kvs]
-  (->> kvs
-    (partition 2)
-    (filter second)
-    (map vec)
-    (into m)))
 
 (s/def ::document d/doc?)
 (s/def ::name string?)
@@ -147,67 +139,78 @@
                  fetch-policy :local-only}} options]
      (case fetch-policy
        :local-only
-       (let [local-result (local-read)
-             nil-result?  (nil? local-result)
-             message      {:data           local-result
-                           :variables      variables
-                           :in-flight?     false
-                           :network-status :ready}
-             error        (when nil-result? "fail")]
-         (async/put! out-chan (?assoc message :error error))
+       (let [local-result (local-read)]
+         (async/put! out-chan
+                     (-> local-result
+                         result->message
+                         (assoc :variables      variables
+                                :source         :local
+                                :in-flight?     false
+                                :network-status :ready)))
          (async/close! out-chan))
 
        :local-first
-       (let [local-result (local-read)
-             nil-result?  (nil? local-result)]
+       (let [local-result    (local-read)
+             nil-local-data? (nil? (:data local-result))]
          (async/put! out-chan
-                     {:data           local-result
-                      :variables      variables
-                      :in-flight?     nil-result?
-                      :network-status (if nil-result? :loading :ready)})
-         (if nil-result?
+                     (-> local-result
+                         result->message
+                         (assoc :variables      variables
+                                :source         :local
+                                :in-flight?     nil-local-data?
+                                :network-status (if nil-local-data? :fetching :ready))))
+         (if nil-local-data?
            (let [remote-result-chan (remote-read)]
-         ;; TODO Handle failed remote-result
              (go (let [remote-result (async/<! remote-result-chan)]
-                   (async/put! out-chan {:data           remote-result
-                                         :variables      variables
-                                         :in-flight?     false
-                                         :network-status :ready})
+                   (async/put! out-chan
+                               (-> remote-result
+                                   result->message
+                                   (assoc :variables      variables
+                                          :source         :remote
+                                          :in-flight?     false
+                                          :network-status :ready)))
                    (async/close! out-chan))))
            (async/close! out-chan)))
 
        :local-then-remote
        (let [local-result       (local-read)
              remote-result-chan (remote-read)]
-         (async/put! out-chan {:data           local-result
-                               :variables      variables
-                               :in-flight?     true
-                               :network-status :loading})
-         ;; TODO Handle failed remote-result
+         (async/put! out-chan
+                     (-> local-result
+                         result->message
+                         (assoc :variables      variables
+                                :source         :local
+                                :in-flight?     true
+                                :network-status :fetching)))
          (go (let [remote-result (async/<! remote-result-chan)]
-               (async/put! out-chan {:data           remote-result
-                                     :variables      variables
-                                     :in-flight?     false
-                                     :network-status :ready})
+               (async/put! out-chan
+                           (-> remote-result
+                               result->message
+                               (assoc :variables      variables
+                                      :source         :remote
+                                      :in-flight?     false
+                                      :network-status :ready)))
                (async/close! out-chan))))
 
        :remote-only
        (let [remote-result-chan (remote-read)]
          (async/put! out-chan {:data           nil
                                :variables      variables
+                               :source         :local
                                :in-flight?     true
-                               :network-status :loading})
-         ;; TODO Handle failed remote-result
+                               :network-status :fetching})
          (go (let [remote-result (async/<! remote-result-chan)]
-               (async/put! out-chan {:data           remote-result
-                                     :variables      variables
-                                     :in-flight?     false
-                                     :network-status :ready})
+               (async/put! out-chan
+                           (-> remote-result
+                               result->message
+                               (assoc :variables      variables
+                                      :source         :remote
+                                      :in-flight?     false
+                                      :network-status :ready)))
                (async/close! out-chan))))
 
-       (throw (ex-info "Invalid :fetch-policy provided. Must be one of
-                       #{:local-only :local-first :local-then-remote :remote-only}."
-                       {:reason    ::invalid-fetch-policy
-                        :attribute :fetch-policy
-                        :value     fetch-policy})))
+       (throw (ex-info (str "Invalid :fetch-policy. Must be one of #{:local-only"
+                            " :local-first :local-then-remote :remote-only}.")
+                       {:reason ::invalid-fetch-policy
+                        :value  fetch-policy})))
      out-chan)))
