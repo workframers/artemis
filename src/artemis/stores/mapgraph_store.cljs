@@ -305,95 +305,231 @@
       {}
       pattern)))
 
+(def ghdoc
+  (d/parse-document
+    "query {
+       repository(owner: \"octocat\", name: \"Hello-World\") {
+         id
+         name
+         description
+         createdAt
+         url
+         sshUrl
+         pushedAt
+         labels(first:5) {
+           nodes {
+             id
+             name
+             repository {
+               id
+               name
+             }
+           }
+         }
+         stargazers(first:5) {
+           nodes {
+             id
+             name
+             email
+               repositories(first:2) {
+                 nodes {
+                   id
+                   name
+                 }
+               }
+           }
+         }
+       }
+     }"))
+
+(def aliased-ghdoc
+  (d/parse-document
+    "query {
+       repository(owner: \"octocat\", name: \"Hello-World\") {
+         id
+         aliasedName: name
+         aliasedDesc: description
+         createdAt
+         aliasedUrl: url
+         sshUrl
+         pushedAt
+         labels(first:5) {
+           aliasedNodes: nodes {
+             nodeID: id
+             name
+             repository {
+               repoID: id
+               name
+             }
+           }
+         }
+         stargazers(first:5) {
+           nodes {
+             id
+             name
+             email
+               repositories(first:2) {
+                 nodes {
+                   id
+                   name
+                 }
+               }
+           }
+         }
+       }
+     }"))
+
 (def test-queries
-  {:named   {:query    (d/parse-document
-                         "{test(arg: \"something\") {
-                            id
-                            aliasedField: stringField
-                            numberField
-                            nullField
-                          }}")}
+  {:named
+   {:query (d/parse-document
+             "{test(arg: \"something\") {
+                id
+                aliasedField: stringField
+                numberField
+                nullField
+              }}")}
 
-   :basic   {:query    (d/parse-document
-                         "{
-                            id
-                            stringField
-                            numberField
-                            nullField
-                          }")
-             :result   {:id          "abcd"
-                        :stringField "this is a string"
-                        :numberField 3
-                        :nullField   nil}
-             :entities {[::cache :root]
-                        {:id          "abcd"
-                         :stringField "this is a string"
-                         :numberField 3
-                         :nullField   nil
-                         ::cache      :root}}}
+   :basic
+   {:query    (d/parse-document
+                "{
+                   id
+                   stringField
+                   numberField
+                   nullField
+                 }")
+    :result   {:id          "abcd"
+               :stringField "this is a string"
+               :numberField 3
+               :nullField   nil}
+    :entities {[::cache :root]
+               {:id          "abcd"
+                :stringField "this is a string"
+                :numberField 3
+                :nullField   nil
+                ::cache      :root}}}
 
-   :aliased {:query    (d/parse-document
-                         "{
-                            id
-                            aliasedField: stringField
-                            numberField
-                            nullField
-                          }")
-             :result   {:id           "abcd"
-                        :aliasedField "this is a string"
-                        :numberField  3
-                        :nullField    nil}
-             :entities {[::cache :root]
-                        {:id          "abcd"
-                         :stringField "this is a string"
-                         :numberField 3
-                         :nullField   nil
-                         ::cache      :root}}}})
+   :aliased
+   {:query    (d/parse-document
+                "{
+                   id
+                   aliasedField: stringField
+                   numberField
+                   nullField
+                 }")
+    :result   {:id           "abcd"
+               :aliasedField "this is a string"
+               :numberField  3
+               :nullField    nil}
+    :entities {[::cache :root]
+               {:id          "abcd"
+                :stringField "this is a string"
+                :numberField 3
+                :nullField   nil
+                ::cache      :root}}}
+
+   :aliased-with-args
+   {:query    (d/parse-document
+                "{
+                   id
+                   aliasedField1: stringField(arg: 1)
+                   aliasedField2: stringField(arg: 2)
+                   numberField
+                   nullField
+                 }")
+    :result   {:id           "abcd"
+               :aliasedField1 "The arg was 1"
+               :aliasedField2 "The arg was 2"
+               :numberField  3
+               :nullField    nil}
+    :entities {[::cache :root]
+               {:id          "abcd"
+                "stringField({\"arg\": 1})" "The arg was 1"
+                "stringField({\"arg\": 2})" "The arg was 2"
+                :numberField 3
+                :nullField   nil
+                ::cache      :root}}}})
+
+(defn arg-snippet [arg]
+  (let [type (-> arg :argument-value :value-type)
+        val  (get (:argument-value arg) type)]
+    (log "arg snippet")
+    (log {:type type :val val :arg arg})
+    (str "\"" (:argument-name arg) "\": " val)))
+
+(defn gen-field-key-with-args [name args] ;; may have to go directly to the source to get this
+  (let [snippets (map arg-snippet args)]
+    (str name "({" (clojure.string/join "," snippets) "})")))
+
+(defn field-key [selection]
+  (if-let [args (:arguments selection)]
+    (gen-field-key-with-args (:field-name selection) args)
+    (:field-name selection)))
 
 (defn log [args]
   (.log js/console args))
 
-(defn alias [selection]                                     ;; returns the alias if exists
+(defn map-vals [m f]
+  (into {} (for [[k v] m] [k (f v)])))
+
+(defn combine-maps-of-seqs [list-of-maps]
+  "[{:one [1] :two [2]} {:one [1]} {:three [3]}] => {:one [1 1], :two [2], :three [3]}"
+  (let [m (apply (partial merge-with concat) list-of-maps)]
+    (map-vals m #(if (sequential? %) % (vector %)))))
+
+(defn aliased? [selection]                                     ;; returns the alias if exists
   (log "alias")
   (log selection)
   (when (:field-alias selection)
-    (select-keys selection [:field-alias :field-name])))
+    selection))
 
-(defn find-aliases
+(defn find-aliased-selections
   ([selection-or-operation]
-    (find-aliases selection-or-operation []))
+    (find-aliased-selections selection-or-operation []))
   ([selection path]
    (log "find alias")
    (log {:selection selection :path path})
    (let [field-name (:field-name selection)
          current-path (if field-name (conj path field-name) path)
-         current-alias (alias selection)
-         alias-map (if current-alias {path current-alias} {})]
-     (log {:current-path current-path :current-alias current-alias :alias-map alias-map})
-     (into alias-map (map #(find-aliases % current-path) (:selection-set selection))))))
+         alias-map (if (:field-alias selection) {path selection} {})
+         alias-maps (conj (map #(find-aliased-selections % current-path) (:selection-set selection)) alias-map)]
+     (log {:current-path current-path :current-alias current-alias :alias-maps alias-maps})
+     (combine-maps-of-seqs alias-maps))))
 
-(defn remove-alias [result {:keys [field-alias field-name]}]
+(defn remove-alias [result {:keys [field-alias field-name] :as selection}]
   (let [field-alias (keyword field-alias)
         field-name (keyword field-name)]
     (-> result
-        (assoc field-name (get result field-alias))
+        (assoc (field-key selection) (get result field-alias))
         (dissoc field-alias))))
 
-(defn remove-alias-reducer [result [path alias-mapping]]
-  (if (empty? path)
-    (remove-alias result alias-mapping)
-    (update-in result path #(remove-alias % alias-mapping))))
+(defn remove-aliases-reducer [result [path alias-mappings]]
+  (let [remove-aliases (fn [res alias-mappings] (reduce remove-alias res alias-mappings))]
+    (if (empty? path)
+      (remove-aliases result alias-mappings)
+      (update-in result path #(remove-aliases % alias-mappings)))))
 
 (defn write-to-cache
   [document result {:keys [variables store] :or {variables [] store (create-store)}}]
   (let [first-op (-> document :ast :operations first)
-        ;cache-key (gen-cache-key first-op)
         root? (= (:operation-type first-op) "query")
         updated-res (if root? (assoc result ::cache :root) result)
-        aliases (find-aliases first-op)
-        updated-res (reduce remove-alias-reducer updated-res aliases)]
+        aliased-selections (find-aliased-selections first-op)
+        updated-res (reduce remove-aliases-reducer updated-res aliased-selections)]
     (.log js/console updated-res)
+    (log "adding ^^ to store")
     (add store updated-res)))
+
+(defn verify-aliases [k]
+  (let [{:keys [query]} (get test-queries k)]
+    (find-aliases (-> query :ast :operations first))))
+
+(defn verify [k]
+  (log (str "verifying results for " k))
+  (let [{:keys [query result entities]} (get test-queries k)
+        new-cache (write-to-cache query result)]
+    (log new-cache)
+    (log (= entities (:entities new-cache)))
+    (= entities (:entities new-cache))))
 
 ; give every entitiy a unique field that can be added to id-attr
 ; :cache/ROOT_VALUE.objField
