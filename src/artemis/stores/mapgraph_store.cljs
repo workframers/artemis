@@ -408,6 +408,25 @@
                 :nullField   nil
                 ::cache      :root}}}
 
+   :args
+   {:query    (d/parse-document
+                "{
+                   id
+                   stringField(arg: 1)
+                   numberField
+                   nullField
+                 }")
+    :result   {:id          "abcd"
+               :stringField "The arg was 1"
+               :numberField 3
+               :nullField   nil}
+    :entities {[::cache :root]
+               {:id          "abcd"
+                "stringField({\"arg\": 1})" "The arg was 1"
+                :numberField 3
+                :nullField   nil
+                ::cache      :root}}}
+
    :aliased
    {:query    (d/parse-document
                 "{
@@ -449,6 +468,9 @@
                 :nullField   nil
                 ::cache      :root}}}})
 
+(defn aliased? [selection] (:field-alias selection))
+(defn has-args? [selection] (:arguments selection))
+
 (defn arg-snippet [arg]
   (let [type (-> arg :argument-value :value-type)
         val  (get (:argument-value arg) type)]
@@ -461,9 +483,10 @@
     (str name "({" (clojure.string/join "," snippets) "})")))
 
 (defn field-key [selection]
-  (if-let [args (:arguments selection)]
+  "returns string key if selection has args otherwise return keywordized field name"
+  (if-let [args (has-args? selection)]
     (gen-field-key-with-args (:field-name selection) args)
-    (:field-name selection)))
+    (-> selection :field-name keyword)))
 
 (defn log [args]
   (.log js/console args))
@@ -476,52 +499,53 @@
   (let [m (apply (partial merge-with concat) list-of-maps)]
     (map-vals m #(if (sequential? %) % (vector %)))))
 
-(defn aliased? [selection]                                     ;; returns the alias if exists
-  (log "alias")
-  (log selection)
-  (when (:field-alias selection)
-    selection))
+(defn weird-selection? [selection]                          ;todo: better name
+  "these selections require a modification of keys in the result"
+  (or (aliased? selection) (has-args? selection)))
 
-(defn find-aliased-selections
+(defn find-weird-selections
   ([selection-or-operation]
-    (find-aliased-selections selection-or-operation []))
+    (find-weird-selections selection-or-operation []))
   ([selection path]
    (log "find alias")
    (log {:selection selection :path path})
    (let [field-name (:field-name selection)
          current-path (if field-name (conj path field-name) path)
-         alias-map (if (:field-alias selection) {path selection} {})
-         alias-maps (conj (map #(find-aliased-selections % current-path) (:selection-set selection)) alias-map)]
-     (log {:current-path current-path :current-alias current-alias :alias-maps alias-maps})
-     (combine-maps-of-seqs alias-maps))))
+         pathed-selection (if (weird-selection? selection) {path selection} {})
+         child-weird-selections (map #(find-weird-selections % current-path) (:selection-set selection))
+         pathed-selections (conj child-weird-selections pathed-selection)]
+     (log {:current-path current-path :pathed-selection pathed-selection :pathed-selections pathed-selections})
+     (combine-maps-of-seqs pathed-selections))))
 
-(defn remove-alias [result {:keys [field-alias field-name] :as selection}]
+(defn modify-field [result {:keys [field-alias field-name] :as selection}]
   (let [field-alias (keyword field-alias)
-        field-name (keyword field-name)]
+        field-name (keyword field-name)
+        field-val (if (aliased? selection) (get result field-alias) (get result field-name))]
     (-> result
-        (assoc (field-key selection) (get result field-alias))
-        (dissoc field-alias))))
+        (dissoc field-name)
+        (dissoc field-alias)
+        (assoc (field-key selection) field-val))))
 
-(defn remove-aliases-reducer [result [path alias-mappings]]
-  (let [remove-aliases (fn [res alias-mappings] (reduce remove-alias res alias-mappings))]
+(defn modify-fields-reducer [result [path weird-selections]]
+  (let [modify-fields (fn [res weird-selections] (reduce modify-field res weird-selections))]
     (if (empty? path)
-      (remove-aliases result alias-mappings)
-      (update-in result path #(remove-aliases % alias-mappings)))))
+      (modify-fields result weird-selections)
+      (update-in result path #(modify-fields % weird-selections)))))
 
 (defn write-to-cache
   [document result {:keys [variables store] :or {variables [] store (create-store)}}]
   (let [first-op (-> document :ast :operations first)
         root? (= (:operation-type first-op) "query")
         updated-res (if root? (assoc result ::cache :root) result)
-        aliased-selections (find-aliased-selections first-op)
-        updated-res (reduce remove-aliases-reducer updated-res aliased-selections)]
+        weird-selections (find-weird-selections first-op)
+        updated-res (reduce modify-fields-reducer updated-res weird-selections)]
     (.log js/console updated-res)
     (log "adding ^^ to store")
     (add store updated-res)))
 
 (defn verify-aliases [k]
   (let [{:keys [query]} (get test-queries k)]
-    (find-aliases (-> query :ast :operations first))))
+    (find-weird-selections (-> query :ast :operations first))))
 
 (defn verify [k]
   (log (str "verifying results for " k))
