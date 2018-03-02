@@ -6,7 +6,9 @@
   :dependencies [[org.clojure/clojure "1.9.0"]
                  [org.clojure/clojurescript "1.9.946"]
                  [alumbra/parser "0.1.7"]
-                 [cljs-http "0.1.44"]]
+                 [cljs-http "0.1.44"]
+                 [figwheel-sidecar "0.5.0"]
+                 [binaryage/devtools "0.7.2"]]
   :plugins [[lein-figwheel "0.5.14"]
             [lein-cljsbuild "1.1.7"]
             [lein-doo "0.1.8"]]
@@ -15,20 +17,27 @@
             "test-chrome" ["with-profile" "test" "doo" "chrome" "test" "once"]
             "test-jvm" ["with-profile" "test" "doo" "rhino" "test" "once"]}
   :clean-targets ^{:protect false} [:target-path "resources/js"]
+  :figwheel
+  {:server-port 8000
+   :http-server-root "."}
+
+  :cljsbuild
+  {:builds
+   {:dev
+    {:source-paths ["src"]
+     :figwheel true
+     :compiler {:output-to "resources/js/main.js"
+                :output-dir "resources/js"
+                :asset-path "js/"
+                :main artemis.core
+                :preloads [artemis.preloads]
+                :optimizations :none}}}}
   :profiles
-  {:demo  {:figwheel
-           {:server-port 8000
-            :http-server-root "."}
-           :cljsbuild
-           {:builds
-            {:dev
-             {:source-paths ["src"]
-              :figwheel true
-              :compiler {:output-to "resources/js/main.js"
-                         :output-dir "resources/js"
-                         :asset-path "js/"
-                         :main artemis.core
-                         :optimizations :none}}}}}
+  {:demo {:cljsbuild
+          {:builds
+           {:dev
+            {:compiler {:source-map true
+                        :optimizations :none}}}}}
    :test {:dependencies [[org.mozilla/rhino "1.7.7"]
                          [org.clojure/test.check "0.9.0"]
                          [orchestra "2017.11.12-1"]]
