@@ -380,14 +380,15 @@
      }"))
 
 (def test-queries
-  {:named
-   {:query (d/parse-document
-             "{test(arg: \"something\") {
-                id
-                aliasedField: stringField
-                numberField
-                nullField
-              }}")}
+  {
+   ;:named
+   ;{:query (d/parse-document
+   ;          "{test(arg: \"something\") {
+   ;             id
+   ;             aliasedField: stringField
+   ;             numberField
+   ;             nullField
+   ;           }}")}
 
    :basic
    {:query    (d/parse-document
@@ -422,7 +423,7 @@
                :nullField   nil}
     :entities {[::cache :root]
                {:id                         "abcd"
-                "stringField({\"arg\": 1})" "The arg was 1"
+                "stringField({\"arg\":1})" "The arg was 1"
                 :numberField                3
                 :nullField                  nil
                 ::cache                     :root}}}
@@ -450,8 +451,8 @@
    {:query    (d/parse-document
                 "{
                    id
-                   aliasedField1: stringField(arg: 1)
-                   aliasedField2: stringField(arg: 2)
+                   aliasedField1: stringField(arg:1)
+                   aliasedField2: stringField(arg:2)
                    numberField
                    nullField
                  }")
@@ -462,32 +463,58 @@
                :nullField     nil}
     :entities {[::cache :root]
                {:id                         "abcd"
-                "stringField({\"arg\": 1})" "The arg was 1"
-                "stringField({\"arg\": 2})" "The arg was 2"
+                "stringField({\"arg\":1})" "The arg was 1"
+                "stringField({\"arg\":2})" "The arg was 2"
                 :numberField                3
                 :nullField                  nil
                 ::cache                     :root}}}
 
    :with-vars
-   {:query    (d/parse-document "{
-                                id
-                                stringField(arg: $stringArg)
-                                numberField(intArg: $intArg, floatArg: $floatArg)
-                                nullField
-                              }")
-    :vars     {:intArg    5
-               :floatArg  3.14
-               :stringArg "This is a string"}
-    :result   {:id          "abcd"
-               :stringField "This worked"
-               :numberField 5
-               :nullField   nil}
-    :entities {[::cache :root]
-               {:id "abcd"
-                :nullField nil
-                "numberField({\"intArg\":5,\"floatArg\":3.14})" 5
-                "stringField({\"arg\":\"This is a string\"})" "This worked"
-                ::cache                     :root}}}})
+   {:query      (d/parse-document
+                  "{
+                     id
+                     stringField(arg: $stringArg)
+                     numberField(intArg: $intArg, floatArg: $floatArg)
+                     nullField
+                   }")
+    :input-vars {:intArg    5
+                 :floatArg  3.14
+                 :stringArg "This is a string"}
+    :result     {:id          "abcd"
+                 :stringField "This worked"
+                 :numberField 5
+                 :nullField   nil}
+    :entities   {[::cache :root]
+                 {:id                                             "abcd"
+                  :nullField                                      nil
+                  "numberField({\"intArg\":5,\"floatArg\":3.14})" 5
+                  "stringField({\"arg\":\"This is a string\"})"   "This worked"
+                  ::cache                                         :root}}}
+
+   :default-vars
+   {:query      (d/parse-document
+                  "query someBigQuery(
+                     $stringArg: String = \"This is a default string\"
+                     $intArg: Int
+                     $floatArg: Float
+                   ) {
+                     id
+                     stringField(arg: $stringArg)
+                     numberField(intArg: $intArg, floatArg: $floatArg)
+                     nullField
+                   }")
+    :input-vars {:intArg   5
+                 :floatArg 3.14}
+    :result     {:id          "abcd"
+                 :stringField "This worked"
+                 :numberField 5
+                 :nullField   nil}
+    :entities   {[::cache :root]
+                 {:id                                                   "abcd"
+                  :nullField                                            nil
+                  "numberField({\"intArg\":5,\"floatArg\":3.14})"       5
+                  "stringField({\"arg\":\"This is a default string\"})" "This worked"
+                  ::cache                                               :root}}}})
 
 (defn log [args]
   (.log js/console args))
@@ -495,25 +522,39 @@
 (defn aliased? [selection] (:field-alias selection))
 (defn has-args? [selection] (:arguments selection))
 
-(defn arg-snippet [variables arg]
+(defn default-val-from-var [var-info]
+  (let [default-val (:default-value var-info)]
+    (get default-val (:value-type default-val))))
+
+(defn val-from-arg [{:keys [input-vars vars-info]} arg]
+  (log "val from arg")
   (let [type (-> arg :argument-value :value-type)
-        val (if (= type :variable)
-              (get variables (-> arg :argument-value :variable-name keyword))
-              (get (:argument-value arg) type))
+        var-name (-> arg :argument-value :variable-name)]
+    (log {:input-vars input-vars :vars-info vars-info :arg arg :type type :var-name var-name})
+    (if (= type :variable)
+      (or (get input-vars (keyword var-name))               ; get val from input vars
+          (-> (group-by :variable-name vars-info)            ; or try to get the default value
+              (get var-name)
+              first
+              default-val-from-var))
+      (get (:argument-value arg) type))))
+
+(defn arg-snippet [context arg]
+  (let [val (val-from-arg context arg)
         val (if (string? val) (str "\"" val "\"") val)]
     (log "arg snippet")
     (log {:type type :val val :arg arg :var-key (-> arg :argument-value :variable-name keyword)
-          :vars variables})
+          :context context})
     (str "\"" (:argument-name arg) "\":" val)))
 
-(defn gen-field-key-with-args [name args variables] ;; may have to go directly to the source to get this
-  (let [snippets (map (partial arg-snippet variables) args)]
+(defn gen-field-key-with-args [name args context] ;; may have to go directly to the source to get this
+  (let [snippets (map (partial arg-snippet context) args)]
     (str name "({" (clojure.string/join "," snippets) "})")))
 
-(defn field-key [selection variables]
+(defn field-key [selection context]
   "returns string key if selection has args otherwise return keywordized field name"
   (if-let [args (has-args? selection)]
-    (gen-field-key-with-args (:field-name selection) args variables)
+    (gen-field-key-with-args (:field-name selection) args context)
     (-> selection :field-name keyword)))
 
 (defn map-vals [m f]
@@ -542,29 +583,31 @@
      (log {:current-path current-path :pathed-selection pathed-selection :pathed-selections pathed-selections})
      (combine-maps-of-seqs pathed-selections))))
 
-(defn modify-field [variables result {:keys [field-alias field-name] :as selection}]
+(defn modify-field [context result {:keys [field-alias field-name] :as selection}]
   (let [field-alias (keyword field-alias)
         field-name (keyword field-name)
         field-val (if (aliased? selection) (get result field-alias) (get result field-name))]
     (-> result
         (dissoc field-name)
         (dissoc field-alias)
-        (assoc (field-key selection variables) field-val))))
+        (assoc (field-key selection context) field-val))))
 
-(defn modify-fields-reducer [variables result [path weird-selections]]
+(defn modify-fields-reducer [context result [path weird-selections]]
   (let [modify-fields (fn [res weird-selections]
-                        (reduce (partial modify-field variables) res weird-selections))]
+                        (reduce (partial modify-field context) res weird-selections))]
     (if (empty? path)
       (modify-fields result weird-selections)
       (update-in result path #(modify-fields % weird-selections)))))
 
 (defn write-to-cache
-  [document result {:keys [variables store] :or {variables {} store (create-store)}}]
+  [document result {:keys [input-vars store] :or {input-vars {} store (create-store)}}]
   (let [first-op (-> document :ast :operations first)
+        context {:input-vars input-vars                     ;variables given to this op
+                 :vars-info (:variables first-op)}            ;info about the kinds of variables supported by this op
         root? (= (:operation-type first-op) "query")
         updated-res (if root? (assoc result ::cache :root) result)
         weird-selections (find-weird-selections first-op)
-        updated-res (reduce (partial modify-fields-reducer variables) updated-res weird-selections)]
+        updated-res (reduce (partial modify-fields-reducer context) updated-res weird-selections)]
     (.log js/console updated-res)
     (log "adding ^^ to store")
     (add store updated-res)))
@@ -573,17 +616,22 @@
   (let [{:keys [query]} (get test-queries k)]
     (find-weird-selections (-> query :ast :operations first))))
 
-(defn verify [k]
+(defn verify [k & no-logs?]
   (log (str "verifying results for " k))
-  (let [{:keys [query vars result entities]} (get test-queries k)
-        new-cache (write-to-cache query result {:variables vars})]
-    (log new-cache)
-    (log "correct: ")
-    (log entities)
-    (log "current: ")
-    (log (:entities new-cache))
-    (log (= entities (:entities new-cache)))
+  (let [{:keys [query input-vars result entities]} (get test-queries k)
+        new-cache (write-to-cache query result {:input-vars input-vars})]
+    (when-not no-logs?
+      (log new-cache)
+      (log "correct: ")
+      (log entities)
+      (log "current: ")
+      (log (:entities new-cache))
+      (log (= entities (:entities new-cache))))
     (= entities (:entities new-cache))))
+
+(defn verify-all []
+  (into {} (map #(vector % (verify % true))
+                (keys test-queries))))
 
 ; give every entitiy a unique field that can be added to id-attr
 ; :cache/ROOT_VALUE.objField
