@@ -159,13 +159,6 @@
 
 ;; Public API
 
-;(defn create-store
-;  ([]
-;   (create-store #{}))
-;  ([id-attrs]
-;   {:pre [(set? id-attrs)]}
-;   (->MapGraphStore id-attrs {} :id)))
-
 (defn create-store
   ([] (create-store {}))
   ([{:keys [id-attrs entities id-gen] :or {id-attrs #{} entities {} id-gen :id}}]
@@ -422,11 +415,11 @@
                :numberField 3
                :nullField   nil}
     :entities {[::cache :root]
-               {:id                         "abcd"
+               {:id                        "abcd"
                 "stringField({\"arg\":1})" "The arg was 1"
-                :numberField                3
-                :nullField                  nil
-                ::cache                     :root}}}
+                :numberField               3
+                :nullField                 nil
+                ::cache                    :root}}}
 
    :aliased
    {:query    (d/parse-document
@@ -462,12 +455,12 @@
                :numberField   3
                :nullField     nil}
     :entities {[::cache :root]
-               {:id                         "abcd"
+               {:id                        "abcd"
                 "stringField({\"arg\":1})" "The arg was 1"
                 "stringField({\"arg\":2})" "The arg was 2"
-                :numberField                3
-                :nullField                  nil
-                ::cache                     :root}}}
+                :numberField               3
+                :nullField                 nil
+                ::cache                    :root}}}
 
    :with-vars
    {:query      (d/parse-document
@@ -514,13 +507,35 @@
                   :nullField                                            nil
                   "numberField({\"intArg\":5,\"floatArg\":3.14})"       5
                   "stringField({\"arg\":\"This is a default string\"})" "This worked"
-                  ::cache                                               :root}}}})
+                  ::cache                                               :root}}}
+
+   :directives
+   {:query    (d/parse-document
+                "{
+                   id
+                   firstName @include(if: true)
+                   lastName @upperCase
+                   birthDate @dateFormat(format: \"DD-MM-YYYY\")
+                 }")
+    :result   {:id        "abcd"
+               :firstName "James"
+               :lastName  "BOND"
+               :birthDate "20-05-1940"}
+    :entities {[::cache :root]
+               {:id                                                  "abcd"
+                :firstName                                           "James"
+                "lastName@upperCase"                                 "BOND"
+                "birthDate@dateFormat({\"format\":\"DD-MM-YYYY\"})"  "20-05-1940"
+                ::cache                                              :root}}}})
 
 (defn log [args]
   (.log js/console args))
 
 (defn aliased? [selection] (:field-alias selection))
 (defn has-args? [selection] (:arguments selection))
+(def regular-directives #{"include" "skip"})
+(defn custom-dirs? [{:keys [directives]}]
+  (some #(not (regular-directives (:directive-name %))) directives))
 
 (defn default-val-from-var [var-info]
   (let [default-val (:default-value var-info)]
@@ -532,12 +547,13 @@
         var-name (-> arg :argument-value :variable-name)]
     (log {:input-vars input-vars :vars-info vars-info :arg arg :type type :var-name var-name})
     (if (= type :variable)
-      (or (get input-vars (keyword var-name))               ; get val from input vars
-          (-> (group-by :variable-name vars-info)            ; or try to get the default value
+      (or (get input-vars (keyword var-name))               ; get value from input vars
+          (-> (group-by :variable-name vars-info)           ; or try to get the default value
               (get var-name)
               first
               default-val-from-var))
       (get (:argument-value arg) type))))
+
 
 (defn arg-snippet [context arg]
   (let [val (val-from-arg context arg)
@@ -547,15 +563,28 @@
           :context context})
     (str "\"" (:argument-name arg) "\":" val)))
 
-(defn gen-field-key-with-args [name args context] ;; may have to go directly to the source to get this
-  (let [snippets (map (partial arg-snippet context) args)]
-    (str name "({" (clojure.string/join "," snippets) "})")))
+(defn attach-args-to-key [key context {:keys [arguments]}]
+  (let [snippets (map (partial arg-snippet context) arguments)]
+    (str key "({" (clojure.string/join "," snippets) "})")))
+
+(defn directive-snippet [context {:keys [directive-name arguments] :as directive}]
+  (let [arg-snippets (map (partial arg-snippet context) arguments)
+        args-string (if-not (empty? arg-snippets)
+                      (str "({" (clojure.string/join "," arg-snippets) "})")
+                      "")]
+    (str "@" directive-name args-string)))
+
+(defn attach-directive-to-key [key context {:keys [directives]}]
+  (let [snippets (map (partial directive-snippet context) directives)]
+    (str key (clojure.string/join "" snippets))))
 
 (defn field-key [selection context]
   "returns string key if selection has args otherwise return keywordized field name"
-  (if-let [args (has-args? selection)]
-    (gen-field-key-with-args (:field-name selection) args context)
-    (-> selection :field-name keyword)))
+  (cond-> (:field-name selection)
+          (has-args? selection) (attach-args-to-key context selection)
+          (custom-dirs? selection) (attach-directive-to-key context selection)
+          (not (or (has-args? selection) (custom-dirs? selection)))
+          keyword))
 
 (defn map-vals [m f]
   (into {} (for [[k v] m] [k (f v)])))
@@ -565,11 +594,14 @@
   (let [m (apply (partial merge-with concat) list-of-maps)]
     (map-vals m #(if (sequential? %) % (vector %)))))
 
-(defn weird-selection? [selection]                          ;todo: better name
+(defn weird-selection? [selection]                          ; todo: better name
   "these selections require a modification of keys in the result"
-  (or (aliased? selection) (has-args? selection)))
+  (or (aliased? selection)
+      (has-args? selection)
+      (custom-dirs? selection)))
 
 (defn find-weird-selections
+  "returns a vector with the path to the selection that is 'weird' and the selection itself"
   ([selection-or-operation]
     (find-weird-selections selection-or-operation []))
   ([selection path]
@@ -602,8 +634,8 @@
 (defn write-to-cache
   [document result {:keys [input-vars store] :or {input-vars {} store (create-store)}}]
   (let [first-op (-> document :ast :operations first)
-        context {:input-vars input-vars                     ;variables given to this op
-                 :vars-info (:variables first-op)}            ;info about the kinds of variables supported by this op
+        context {:input-vars input-vars                     ; variables given to this op
+                 :vars-info (:variables first-op)}          ; info about the kinds of variables supported by this op
         root? (= (:operation-type first-op) "query")
         updated-res (if root? (assoc result ::cache :root) result)
         weird-selections (find-weird-selections first-op)
