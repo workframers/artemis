@@ -15,3 +15,5 @@ pom.xml.asc
 .hg/
 /resources/js/
 *.DS_Store
+/resources/.github-token
+node_modules/

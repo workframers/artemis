@@ -2,6 +2,7 @@
   #?(:cljs (:require-macros artemis.document))
   (:require [clojure.spec.alpha :as s]
             #?@(:clj [[alumbra.parser :as a]
+                      [alumbra.errors :as ae]
                       [clojure.walk :as w]])))
 
 (defn- remove-namespace [x]
@@ -53,9 +54,7 @@
      (let [parsed (a/parse-document source)]
        (if (contains? parsed :alumbra/parser-errors)
          (throw (ex-info "Unable to parse source."
-                         (merge {:reason    ::invalid-source
-                                 :attribute 'source
-                                 :value     source}
-                                parsed)))
+                         {:reason  ::invalid-source
+                          :errors  (vec (ae/explain-data parsed source))}))
          (let [ast (w/postwalk remove-namespace parsed)]
            (Document. ast source))))))

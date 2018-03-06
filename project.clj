@@ -6,9 +6,9 @@
   :dependencies [[org.clojure/clojure "1.9.0"]
                  [org.clojure/clojurescript "1.9.946"]
                  [alumbra/parser "0.1.7"]
+                 [alumbra/errors "0.1.1"]
                  [cljs-http "0.1.44"]
-                 [figwheel-sidecar "0.5.0"]
-                 [binaryage/devtools "0.7.2"]]
+                 [figwheel-sidecar "0.5.0"]]
   :plugins [[lein-figwheel "0.5.14"]
             [lein-cljsbuild "1.1.7"]
             [lein-doo "0.1.8"]]
@@ -30,14 +30,23 @@
                 :output-dir "resources/js"
                 :asset-path "js/"
                 :main artemis.core
-                :preloads [artemis.preloads]
                 :optimizations :none}}}}
   :profiles
-  {:demo {:cljsbuild
-          {:builds
-           {:dev
-            {:compiler {:source-map true
-                        :optimizations :none}}}}}
+  {:demo  {:dependencies [[binaryage/devtools "0.9.9"]]
+           :figwheel
+           {:server-port 8000
+            :http-server-root "."}
+           :cljsbuild
+           {:builds
+            {:dev
+             {:source-paths ["src" "demo"]
+              :figwheel true
+              :compiler {:output-to "resources/js/main.js"
+                         :output-dir "resources/js"
+                         :asset-path "js/"
+                         :main artemis.demo
+                         :optimizations :none
+                         :preloads [devtools.preload]}}}}}
    :test {:dependencies [[org.mozilla/rhino "1.7.7"]
                          [org.clojure/test.check "0.9.0"]
                          [orchestra "2017.11.12-1"]]
