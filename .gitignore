@@ -14,3 +14,5 @@ pom.xml.asc
 .hgignore
 .hg/
 /resources/js/
+/resources/.github-token
+node_modules/
