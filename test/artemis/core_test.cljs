@@ -1,6 +1,6 @@
 (ns artemis.core-test
   (:require-macros [cljs.core.async.macros :refer [go]])
-  (:require [cljs.test :refer-macros [deftest is testing async]]
+  (:require [cljs.test :refer-macros [deftest is testing async use-fixtures]]
             [cljs.core.async :refer [chan <! put!]]
             [clojure.spec.alpha :as s]
             [clojure.spec.gen.alpha :as gen]
@@ -15,12 +15,17 @@
   (reify np/GQLNetworkStep
     (-exec [_ _ _] mock-chan)))
 
-(defn- stub-store [c]
-  (reify sp/GQLStore
-    (-query [_ doc variables _]
-      (let [result (get-in c [:heros (:episode variables)])]
-        (cond-> {:data result}
-          (nil? result) (with-errors [{:message "Couldn't find hero"}]))))))
+(defrecord Store [cache]
+  sp/GQLStore
+  (-query [this _ variables _]
+    (let [result (get-in this [:cache :heros (:episode variables)])]
+      (cond-> {:data result}
+        (nil? result) (with-errors [{:message "Couldn't find hero"}]))))
+  (-write [this result _ variables]
+    (let [review (get-in result [:data :createReview])]
+      (update-in this [:cache :reviews (:episode variables)] conj review))))
+
+(defn- stub-store [c] (->Store c))
 
 (deftest create-client
   (is (some? (core/create-client)))
@@ -43,7 +48,8 @@
 ;; artemis.core/query tests
 ;; -------------------------
 
-(defonce mock-cache   {:heros {"The Empire Strikes Back" "Luke Skywalker"}})
+(defonce mock-cache   {:heros   {"The Empire Strikes Back" "Luke Skywalker"}
+                       :reviews {"The Empire Strikes Back" #{}}})
 (defonce mock-chan    (chan))
 (defonce client       (core/create-client (stub-store mock-cache) (stub-net-chain mock-chan)))
 (defonce doc          (parse-document "query Hero($episode: String!) { hero(episode: $episode) { name } }"))
@@ -186,3 +192,63 @@
 (deftest query-invalid
   (is (thrown-with-msg? ExceptionInfo #"Invalid :fetch-policy"
                         (query :something-else))))
+
+;; -------------------------
+;; artemis.core/mutate tests
+;; -------------------------
+
+(defonce mdoc (parse-document "mutation CreateReview($episode: String!, $review: ReviewInput!) {
+                                createReview(episode: $episode, review: $review) {
+                                  stars
+                                  commentary
+                                }
+                              }"))
+(defonce mvariables {:episode "The Empire Strikes Back"
+                     :reivew  {:stars      4
+                               :commentary "This is a great movie!"}})
+(defonce mutate (partial core/mutate client mdoc mvariables))
+
+(deftest mutate-no-optimistic
+  (async done
+    (let [result-chan (mutate)]
+      (go (let [local-result  (<! result-chan)
+                remote-result (<! result-chan)
+                closed?       (nil? (<! result-chan))]
+            (is (nil? (:data local-result)))
+            (is (= (:variables local-result) mvariables))
+            (is (= (:source local-result) :local))
+            (is (= (:network-status local-result) :fetching))
+            (is (true? (:in-flight? local-result)))
+
+            (is (= (:data remote-result) {:createReview {:stars 4 :commentary "This is a great movie!"}}))
+            (is (= (:variables remote-result) mvariables))
+            (is (= (:source remote-result) :remote))
+            (is (= (:network-status remote-result) :ready))
+            (is (false? (:in-flight? remote-result)))
+            (is closed?)
+            (done)))
+    (put! mock-chan {:data {:createReview {:stars 4 :commentary "This is a great movie!"}}}))))
+
+(deftest mutate-optimistic
+  (async done
+    (let [result-chan (mutate :optimistic-result
+                              {:createReview
+                               {:stars 4
+                                :commentary "This is a great movie!"}})]
+      (go (let [local-result  (<! result-chan)
+                remote-result (<! result-chan)
+                closed?       (nil? (<! result-chan))]
+            (is (= (:data local-result) {:createReview {:stars 4 :commentary "This is a great movie!"}}))
+            (is (= (:variables local-result) mvariables))
+            (is (= (:source local-result) :local))
+            (is (= (:network-status local-result) :fetching))
+            (is (true? (:in-flight? local-result)))
+
+            (is (= (:data remote-result) {:createReview {:stars 4 :commentary "This is a great movie!"}}))
+            (is (= (:variables remote-result) mvariables))
+            (is (= (:source remote-result) :remote))
+            (is (= (:network-status remote-result) :ready))
+            (is (false? (:in-flight? remote-result)))
+            (is closed?)
+            (done)))
+      (put! mock-chan {:data {:createReview {:stars 4 :commentary "This is a great movie!"}}}))))
