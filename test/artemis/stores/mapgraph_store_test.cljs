@@ -169,7 +169,7 @@
                :numberField 3
                :nullField   nil
                :nestedObj   {:id          "abcde"
-                             :stringField "tbis is a string too"
+                             :stringField "this is a string too"
                              :numberField 3
                              :nullField   nil
                              :__typename  "object"}}
@@ -204,7 +204,7 @@
                :stringField "this is a string"
                :numberField 3
                :nullField   nil
-               :nestedObj   {:stringField "tbis is a string too"
+               :nestedObj   {:stringField "this is a string too"
                              :numberField 3
                              :nullField   nil
                              :__typename  "object"}}
@@ -239,7 +239,7 @@
                :stringField "this is a string"
                :numberField 3
                :nullField   nil
-               :nestedObj   {:stringField "tbis is a string too"
+               :nestedObj   {:stringField "this is a string too"
                              :numberField 3
                              :nullField   nil
                              :__typename  "object"}}
@@ -275,12 +275,12 @@
                :numberField 1
                :nullField   nil
                :nestedArray [{:id          "abcde"
-                              :stringField "tbis is a string too"
+                              :stringField "this is a string too"
                               :numberField 2
                               :nullField   nil
                               :__typename  "object"}
                              {:id          "abcdef"
-                              :stringField "tbis is a string also"
+                              :stringField "this is a string also"
                               :numberField 3
                               :nullField   nil
                               :__typename  "object"}]}
@@ -322,7 +322,7 @@
                :numberField 1
                :nullField   nil
                :nestedArray [{:id          "abcde"
-                              :stringField "tbis is a string too"
+                              :stringField "this is a string too"
                               :numberField 2
                               :nullField   nil
                               :__typename  "object"}
@@ -358,11 +358,11 @@
                :stringField "this is a string"
                :numberField 1
                :nullField   nil
-               :nestedArray [{:stringField "tbis is a string too"
+               :nestedArray [{:stringField "this is a string too"
                               :numberField 2
                               :nullField   nil
                               :__typename  "object"}
-                             {:stringField "tbis is a string also"
+                             {:stringField "this is a string also"
                               :numberField 3
                               :nullField   nil
                               :__typename  "object"}]}
@@ -404,7 +404,7 @@
                :numberField 1
                :nullField   nil
                :nestedArray [nil
-                             {:stringField "tbis is a string also"
+                             {:stringField "this is a string also"
                               :numberField 2
                               :nullField   nil
                               :__typename  "object"}]}

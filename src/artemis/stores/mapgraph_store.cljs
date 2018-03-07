@@ -2,10 +2,9 @@
   (:require [artemis.stores.protocols :as sp]
             [artemis.document :as d]))
 
+;(enable-console-print!)
 ;(defn log [args]
-;  #?(:cljs (if-let [c js/console]
-;             (.log c args)))
-;  #?(:clj (println args)))
+;  (.log js/console args))
 (def log identity)
 
 ;; Normalization code
@@ -297,11 +296,17 @@
         updated-res (if root? (assoc result ::cache :root) result)
         weird-selections (find-weird-selections first-op)
         updated-res (reduce (partial modify-fields-reducer context) updated-res weird-selections)]
+    (log "weird selections")
+    (log weird-selections)
     (log updated-res)
     (log "adding ^^ to store")
     (add store updated-res)))
 
-; helper functions for developing in a repl
+
+
+
+;helper functions for developing in a repl
+
 ;(defn verify-wierd-selections [test-queries k]
 ;  (let [{:keys [query]} (get test-queries k)]
 ;    (find-weird-selections (-> query :ast :operations first))))
@@ -309,7 +314,8 @@
 ;(defn verify [test-queries k & no-logs?]
 ;  (log (str "verifying results for " k))
 ;  (let [{:keys [query input-vars result entities]} (get test-queries k)
-;        new-cache (write-to-cache query result {:input-vars input-vars})]
+;        new-cache (write-to-cache query result {:input-vars input-vars
+;                                                :store (create-store {:id-attrs #{:object/id :nested-object/id}})})]
 ;    (when-not no-logs?
 ;      (log new-cache)
 ;      (log "correct: ")
@@ -320,7 +326,7 @@
 ;    (= entities (:entities new-cache))))
 ;
 ;(defn verify-all [test-queries]
-;  (into {} (map #(vector % (verify % true))
+;  (into {} (map #(vector % (verify test-queries % true))
 ;                (keys test-queries))))
 
 
