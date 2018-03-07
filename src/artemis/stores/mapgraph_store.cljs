@@ -193,35 +193,6 @@
 (defn custom-dirs? [{:keys [directives]}]
   (some #(not (regular-directives (:directive-name %))) directives))
 
-(defn map-vals [m f]
-  (into {} (for [[k v] m] [k (f v)])))
-
-(defn combine-maps-of-seqs [list-of-maps]
-  "[{:one [1] :two [2]} {:one [1]} {:three [3]}] => {:one [1 1], :two [2], :three [3]}"
-  (let [m (apply (partial merge-with concat) list-of-maps)]
-    (map-vals m #(if (sequential? %) % (vector %)))))
-
-(defn weird-selection? [selection]                          ; todo: better name
-  "these selections require a modification of it's field in the result"
-  (or (aliased? selection)
-      (has-args? selection)
-      (custom-dirs? selection)))
-
-(defn find-weird-selections
-  "returns a vector containing the path to the selection that is 'weird' and the selection itself"
-  ([selection-or-operation]
-   (find-weird-selections selection-or-operation []))
-  ([selection path]
-   (log "find alias")
-   (log {:selection selection :path path})
-   (let [field-name (:field-name selection)
-         current-path (if field-name (conj path field-name) path)
-         pathed-selection (if (weird-selection? selection) {path selection} {})
-         child-weird-selections (map #(find-weird-selections % current-path) (:selection-set selection))
-         pathed-selections (conj child-weird-selections pathed-selection)]
-     (log {:current-path current-path :pathed-selection pathed-selection :pathed-selections pathed-selections})
-     (combine-maps-of-seqs pathed-selections))))
-
 (defn default-val-from-var [var-info]
   (let [default-val (:default-value var-info)]
     (get default-val (:value-type default-val))))
@@ -270,46 +241,126 @@
           (not (or (has-args? selection) (custom-dirs? selection)))
           keyword))
 
-(defn modify-field [context result {:keys [field-alias field-name] :as selection}]
+(defn modify-map-value [{:keys [store] :as context} selection m]
+  "does two things: namespaces the keys according to typename and attaches
+   a ::cache key if the map isn't already an entity that can be normalized"
+  (let [typename (:__typename m)
+        namespaced-map
+        (into {} (map (fn [[k v]]
+                        (let [new-k (if typename (keyword typename k) k)]
+                          (vector new-k v)))
+                      (dissoc m :__typename)))]
+    (if (not (get-ref namespaced-map (:id-attrs store)))
+      (assoc namespaced-map ::cache (::namespaced-key selection))
+      namespaced-map)))
+
+(defn modify-field [context result
+                    {:keys [field-alias field-name key namespaced-key] :as selection}]
   "modify fields in the result if necessary. this applies to aliased fields, fields with arguments, etc"
   (let [field-alias (keyword field-alias)
         field-name (keyword field-name)
-        field-val (if (aliased? selection) (get result field-alias) (get result field-name))]
-    (-> result
-        (dissoc field-name)
-        (dissoc field-alias)
-        (assoc (field-key selection context) field-val))))
+        field-val (if (aliased? selection) (get result field-alias) (get result field-name))
+        field-val (if (map? field-val)
+                    (modify-map-value context selection field-val)
+                    field-val)]
+    (log {:key (::key selection) :namespaced-key (::namespaced-key selection)
+          :old-result result :new-result     (-> result
+                                                 (dissoc field-name)
+                                                 (dissoc field-alias)
+                                                 (assoc (::key selection) field-val))})
+    (if field-val ; only modify field if field val exists
+      (-> result
+          (dissoc field-name)
+          (dissoc field-alias)
+          (assoc (::key selection) field-val))
+      result)))
 
-(defn modify-fields-reducer [context result [path weird-selections]]
-  (let [modify-fields (fn [res weird-selections]
-                        (reduce (partial modify-field context) res weird-selections))]
+(defn update-in-all-vec
+  "same as update-in but doesn't require indexes when it comes accross a vector
+   it just applies the 'update-in' accross every item in the vector"
+  [m [k & ks] f]
+  (let [val (get m k)]
+    (if (sequential? val) ;; if val is a sequence but not a map
+      (if ks
+        (assoc m k (map #(update-in-all-vec % ks f) val))
+        (assoc m k (map f val)))
+      (if ks
+        (assoc m k (update-in-all-vec val ks f))
+        (assoc m k (f val))))))
+
+(defn modify-fields-reducer [context result [path selections]]
+  (let [modify-fields (fn [res selections]
+                        (reduce (partial modify-field context) res selections))]
+    (log "the path is")
+    (log path)
     (if (empty? path)
-      (modify-fields result weird-selections)
-      (update-in result path #(modify-fields % weird-selections)))))
+      (modify-fields result selections)
+      (update-in-all-vec result path #(modify-fields % selections)))))
+
+(defn map-vals [m f]
+  (into {} (for [[k v] m] [k (f v)])))
+
+(defn combine-maps-of-seqs [list-of-maps]
+  "[{:one [1] :two [2]} {:one [1]} {:three [3]}] => {:one [1 1], :two [2], :three [3]}"
+  (let [m (apply (partial merge-with concat) list-of-maps)]
+    (map-vals m #(if (sequential? %) % (vector %)))))
+
+(defn add-keys-to-selection [context selection stub]
+  (let [selection-key (field-key selection context)
+        namespaced-selection-key (str stub "." (name selection-key))]
+    (assoc selection ::key selection-key
+                     ::namespaced-key namespaced-selection-key)))
+
+(defn update-selections
+  "goes through the operation and pulls out all the selections
+   returns a mapping of <path-to-selection> => <list-of-selections-for-path>
+   these selections are also updated to include the key that will be used when
+   persisting results to the database."
+  ([ctx selection-or-operation]
+   (update-selections ctx selection-or-operation [] "root"))
+  ([ctx selection path stub]
+   (log "find alias")
+   (log {:selection selection :path path :stub stub})
+   (if (:field-name selection)
+     (let [field-name (:field-name selection)
+           current-path (conj path (keyword field-name))
+           sel-key (field-key selection ctx)
+           nsed-sel-key (str stub "." (name sel-key))
+           new-selection     (assoc selection ::key sel-key
+                                              ::namespaced-key nsed-sel-key)
+           pathed-selection {path new-selection}
+           pathed-child-selections (map #(update-selections ctx % current-path nsed-sel-key)
+                                       (:selection-set selection))
+           pathed-selections (conj pathed-child-selections pathed-selection)]
+       (log {:current-path           current-path
+             :pathed-selection       pathed-selection
+             :pathed-selections      pathed-selections
+             :child-selections pathed-child-selections})
+       (combine-maps-of-seqs pathed-selections))
+     (combine-maps-of-seqs
+       (map (partial update-selections ctx) (:selection-set selection))))))
 
 (defn write-to-cache
   [document result {:keys [input-vars store] :or {input-vars {} store (create-store)}}]
   (let [first-op (-> document :ast :operations first)
         context {:input-vars input-vars                     ; variables given to this op
-                 :vars-info (:variables first-op)}          ; info about the kinds of variables supported by this op
+                 :vars-info (:variables first-op)           ; info about the kinds of variables supported by this op
+                 :store store}
         root? (= (:operation-type first-op) "query")
         updated-res (if root? (assoc result ::cache :root) result)
-        weird-selections (find-weird-selections first-op)
-        updated-res (reduce (partial modify-fields-reducer context) updated-res weird-selections)]
-    (log "weird selections")
-    (log weird-selections)
+        pathed-selections (update-selections context first-op)
+        ; sorting these selections becayse we need to reduce over the deepest results first
+        sorted-pathed-selections (into (sorted-map-by (comp - count)) pathed-selections)
+        updated-res (reduce (partial modify-fields-reducer context) updated-res
+                            sorted-pathed-selections)]
+    (log "pathed selections")
+    (log pathed-selections)
     (log updated-res)
     (log "adding ^^ to store")
     (add store updated-res)))
 
-
-
-
 ;helper functions for developing in a repl
-
-;(defn verify-wierd-selections [test-queries k]
-;  (let [{:keys [query]} (get test-queries k)]
-;    (find-weird-selections (-> query :ast :operations first))))
+;
 ;
 ;(defn verify [test-queries k & no-logs?]
 ;  (log (str "verifying results for " k))

@@ -248,13 +248,13 @@
                 :stringField                         "this is a string"
                 :numberField                         3
                 :nullField                           nil
-                "nestedObj(arg:\"val\")"             [:artemis.stores.mapgraph-store/cache "root.nestedObj(arg:\"val\")"]
+                "nestedObj({\"arg\":\"val\"})"       [:artemis.stores.mapgraph-store/cache "root.nestedObj({\"arg\":\"val\"})"]
                 :artemis.stores.mapgraph-store/cache :root}
-               [:artemis.stores.mapgraph-store/cache "root.nestedObj(arg:\"val\")"]
+               [:artemis.stores.mapgraph-store/cache "root.nestedObj({\"arg\":\"val\"})"]
                {:object/stringField                  "this is a string too"
                 :object/numberField                  3
                 :object/nullField                    nil
-                :artemis.stores.mapgraph-store/cache "root.nestedObj(arg:\"val\")"}}}
+                :artemis.stores.mapgraph-store/cache "root.nestedObj({\"arg\":\"val\"})"}}}
 
    :nested-array
    {:query    (d/parse-document
@@ -619,7 +619,6 @@
                      nullField
                      __typename
                    }
-                   __typename
                  }")
     :result   {:id          "abcd"
                :stringField "this is a string"
