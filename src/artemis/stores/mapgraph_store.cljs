@@ -68,6 +68,9 @@
   [m k f x]
   (assoc! m k (f (get m k) x)))
 
+(defn ref-and-val [id-attrs val]
+  {:ref (get-ref val id-attrs) :val val})
+
 (defn- normalize-entities
   "Returns a sequence of normalized entities starting with map m."
   [m id-attrs]
@@ -101,19 +104,13 @@
                        (rest kvs)))))
           ;; v is not a map
           (if (coll? v)
-            (if-let [refs (seq (keep #(get-ref % id-attrs) v))]
-              ;; v is a collection of entities
-              (do (when-not (= (count refs) (count v))
-                    (throw (ex-info "Collection values may not mix entities and non-entities"
-                                    {:reason ::mixed-collection
-                                     ::attribute k
-                                     ::value v})))
-                  (recur (into! sub-entities v)
-                         (assoc! normalized k (like v refs))
-                         (rest kvs)))
-              ;; v is a collection of non-entities
-              (recur sub-entities
-                     (assoc! normalized k v)
+            (let [refs-and-vals (map (partial ref-and-val id-attrs) v)
+                  new-v (map #(if-let [ref (:ref %)] ref (:val %)) refs-and-vals)
+                  refs (->> refs-and-vals
+                            (remove #(-> % :ref nil?))
+                            (map :val))]
+              (recur (into! sub-entities refs)
+                     (assoc! normalized k (like v new-v))
                      (rest kvs)))
             ;; v is a single non-entity
             (recur sub-entities
@@ -198,10 +195,10 @@
     (get default-val (:value-type default-val))))
 
 (defn val-from-arg [{:keys [input-vars vars-info]} arg]
-  (log "val from arg")
+  ;(log "val from arg")
   (let [type (-> arg :argument-value :value-type)
         var-name (-> arg :argument-value :variable-name)]
-    (log {:input-vars input-vars :vars-info vars-info :arg arg :type type :var-name var-name})
+    ;(log {:input-vars input-vars :vars-info vars-info :arg arg :type type :var-name var-name})
     (if (= type :variable)
       (or (get input-vars (keyword var-name))               ; get value from input vars
           (-> (group-by :variable-name vars-info)           ; or try to get the default value
@@ -213,9 +210,9 @@
 (defn arg-snippet [context arg]
   (let [val (val-from-arg context arg)
         val (if (string? val) (str "\"" val "\"") val)]
-    (log "arg snippet")
-    (log {:type type :val val :arg arg :var-key (-> arg :argument-value :variable-name keyword)
-          :context context})
+    ;(log "arg snippet")
+    ;(log {:type type :val val :arg arg :var-key (-> arg :argument-value :variable-name keyword)
+    ;      :context context})
     (str "\"" (:argument-name arg) "\":" val)))
 
 (defn attach-args-to-key [key context {:keys [arguments]}]
@@ -241,18 +238,23 @@
           (not (or (has-args? selection) (custom-dirs? selection)))
           keyword))
 
-(defn modify-map-value [{:keys [store] :as context} selection m]
+(defn modify-map-value [{:keys [store] :as context} selection m & [idx]]
   "does two things: namespaces the keys according to typename and attaches
    a ::cache key if the map isn't already an entity that can be normalized"
-  (let [typename (:__typename m)
-        namespaced-map
-        (into {} (map (fn [[k v]]
-                        (let [new-k (if typename (keyword typename k) k)]
-                          (vector new-k v)))
-                      (dissoc m :__typename)))]
-    (if (not (get-ref namespaced-map (:id-attrs store)))
-      (assoc namespaced-map ::cache (::namespaced-key selection))
-      namespaced-map)))
+  (if (map? m)
+    (let [typename (:__typename m)
+          namespaced-map
+          (into {} (map (fn [[k v]]
+                          (let [new-k (if typename (keyword typename k) k)]
+                            (vector new-k v)))
+                        (dissoc m :__typename)))]
+      (if (not (get-ref namespaced-map (:id-attrs store)))
+        (let [cache-key (if idx
+                          (str (::namespaced-key selection) "." idx)
+                          (::namespaced-key selection))]
+          (assoc namespaced-map ::cache cache-key))
+        namespaced-map))
+    m))
 
 (defn modify-field [context result
                     {:keys [field-alias field-name key namespaced-key] :as selection}]
@@ -260,14 +262,17 @@
   (let [field-alias (keyword field-alias)
         field-name (keyword field-name)
         field-val (if (aliased? selection) (get result field-alias) (get result field-name))
-        field-val (if (map? field-val)
+        field-val (cond
+                    (sequential? field-val)
+                    (map (partial modify-map-value context selection) field-val (range))
+                    (map? field-val)
                     (modify-map-value context selection field-val)
-                    field-val)]
-    (log {:key (::key selection) :namespaced-key (::namespaced-key selection)
-          :old-result result :new-result     (-> result
-                                                 (dissoc field-name)
-                                                 (dissoc field-alias)
-                                                 (assoc (::key selection) field-val))})
+                    :else field-val)]
+    ;(log {:key (::key selection) :namespaced-key (::namespaced-key selection)
+    ;      :old-result result :new-result     (-> result
+    ;                                             (dissoc field-name)
+    ;                                             (dissoc field-alias)
+    ;                                             (assoc (::key selection) field-val))})
     (if field-val ; only modify field if field val exists
       (-> result
           (dissoc field-name)
@@ -291,8 +296,8 @@
 (defn modify-fields-reducer [context result [path selections]]
   (let [modify-fields (fn [res selections]
                         (reduce (partial modify-field context) res selections))]
-    (log "the path is")
-    (log path)
+    ;(log "the path is")
+    ;(log path)
     (if (empty? path)
       (modify-fields result selections)
       (update-in-all-vec result path #(modify-fields % selections)))))
@@ -311,16 +316,16 @@
     (assoc selection ::key selection-key
                      ::namespaced-key namespaced-selection-key)))
 
-(defn update-selections
+(defn path-selections
   "goes through the operation and pulls out all the selections
-   returns a mapping of <path-to-selection> => <list-of-selections-for-path>
+   returns a mapping of <path> => <list-of-selections-for-path>
    these selections are also updated to include the key that will be used when
    persisting results to the database."
   ([ctx selection-or-operation]
-   (update-selections ctx selection-or-operation [] "root"))
+   (path-selections ctx selection-or-operation [] "root"))
   ([ctx selection path stub]
-   (log "find alias")
-   (log {:selection selection :path path :stub stub})
+   ;(log "find alias")
+   ;(log {:selection selection :path path :stub stub})
    (if (:field-name selection)
      (let [field-name (:field-name selection)
            current-path (conj path (keyword field-name))
@@ -329,16 +334,16 @@
            new-selection     (assoc selection ::key sel-key
                                               ::namespaced-key nsed-sel-key)
            pathed-selection {path new-selection}
-           pathed-child-selections (map #(update-selections ctx % current-path nsed-sel-key)
+           pathed-child-selections (map #(path-selections ctx % current-path nsed-sel-key)
                                        (:selection-set selection))
            pathed-selections (conj pathed-child-selections pathed-selection)]
-       (log {:current-path           current-path
-             :pathed-selection       pathed-selection
-             :pathed-selections      pathed-selections
-             :child-selections pathed-child-selections})
+       ;(log {:current-path           current-path
+       ;      :pathed-selection       pathed-selection
+       ;      :pathed-selections      pathed-selections
+       ;      :child-selections pathed-child-selections})
        (combine-maps-of-seqs pathed-selections))
      (combine-maps-of-seqs
-       (map (partial update-selections ctx) (:selection-set selection))))))
+       (map (partial path-selections ctx) (:selection-set selection))))))
 
 (defn write-to-cache
   [document result {:keys [input-vars store] :or {input-vars {} store (create-store)}}]
@@ -348,7 +353,7 @@
                  :store store}
         root? (= (:operation-type first-op) "query")
         updated-res (if root? (assoc result ::cache :root) result)
-        pathed-selections (update-selections context first-op)
+        pathed-selections (path-selections context first-op)
         ; sorting these selections becayse we need to reduce over the deepest results first
         sorted-pathed-selections (into (sorted-map-by (comp - count)) pathed-selections)
         updated-res (reduce (partial modify-fields-reducer context) updated-res
@@ -360,7 +365,6 @@
     (add store updated-res)))
 
 ;helper functions for developing in a repl
-;
 ;
 ;(defn verify [test-queries k & no-logs?]
 ;  (log (str "verifying results for " k))
@@ -379,7 +383,6 @@
 ;(defn verify-all [test-queries]
 ;  (into {} (map #(vector % (verify test-queries % true))
 ;                (keys test-queries))))
-
 
 
 

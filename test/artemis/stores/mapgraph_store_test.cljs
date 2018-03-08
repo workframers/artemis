@@ -405,7 +405,7 @@
                :nullField   nil
                :nestedArray [nil
                              {:stringField "this is a string also"
-                              :numberField 2
+                              :numberField 3
                               :nullField   nil
                               :__typename  "object"}]}
     :entities {[:artemis.stores.mapgraph-store/cache :root]
@@ -491,13 +491,13 @@
 
     :entities {[:artemis.stores.mapgraph-store/cache :root]
                {:id                                  "a"
-                :array1                              [[:object/id "aa"]]
-                :array2                              [[:object/id "ab"]]
+                :object1                             [:object/id "aa"]
+                :object2                             [:object/id "aa"]
                 :artemis.stores.mapgraph-store/cache :root}
                [:object/id "aa"]
                {:object/id          "aa"
                 :object/stringField "this is a string"
-                :numberField        1}}}
+                :object/numberField 1}}}
 
    :obj-in-different-array-paths
    {:query    (d/parse-document
@@ -546,64 +546,64 @@
                [:object/id "aa"]
                {:object/id          "aa"
                 :object/stringField "this is a string"
-                :obj                [:nested-object/id "aaa"]}
+                :object/obj         [:nested-object/id "aaa"]}
                [:object/id "ab"]
                {:object/id          "ab"
                 :object/stringField "this is a string too"
-                :obj                [:nested-object/id "aaa"]}
+                :object/obj         [:nested-object/id "aaa"]}
                [:nested-object/id "aaa"]
-               {:nested-object/id   "aaa"
-                :object/stringField "string"
-                :numberField        1}}}
+               {:nested-object/id          "aaa"
+                :nested-object/stringField "string"
+                :nested-object/numberField 1}}}
 
-   :obj-twice-in-same-array-path
-   {:query    (d/parse-document
-                " {
-                   id
-                   array1 {
-                     id
-                     stringField
-                     obj {
-                       id
-                       stringField
-                       numberField
-                       __typename
-                     }
-                     __typename
-                   }
-                 }")
-    :result   {:id     "a"
-               :array1 [{:id          "aa"
-                         :stringField "this is a string"
-                         :obj         {:id          "aaa"
-                                       :stringField "string"
-                                       :numberField 1
-                                       :__typename  "nested-object"}
-                         :__typename  "object"}
-                        {:id          "ab"
-                         :stringField "this is a string too"
-                         :obj         {:id          "aaa"
-                                       :stringField "should not be written?" ;; not sure if we should enforce this guarantee
-                                       :numberField 2
-                                       :__typename  "nested-object"}
-                         :__typename  "object"}]}
-    :entities {[:artemis.stores.mapgraph-store/cache :root]
-               {:id                                  "a"
-                :array1                              [[:object/id "aa"]
-                                                      [:object/id "ab"]]
-                :artemis.stores.mapgraph-store/cache :root}
-               [:object/id "aa"]
-               {:object/id          "aa"
-                :object/stringField "this is a string"
-                :obj                [:nested-object/id "aaa"]}
-               [:object/id "ab"]
-               {:object/id          "ab"
-                :object/stringField "this is a string too"
-                :obj                [:nested-object/id "aaa"]}
-               [:nested-object/id "aaa"]
-               {:nested-object/id   "aaa"
-                :object/stringField "string"
-                :numberField        1}}}
+   ;:obj-twice-in-same-array-path
+   ;{:query    (d/parse-document
+   ;             " {
+   ;                id
+   ;                array1 {
+   ;                  id
+   ;                  stringField
+   ;                  obj {
+   ;                    id
+   ;                    stringField
+   ;                    numberField
+   ;                    __typename
+   ;                  }
+   ;                  __typename
+   ;                }
+   ;              }")
+   ; :result   {:id     "a"
+   ;            :array1 [{:id          "aa"
+   ;                      :stringField "this is a string"
+   ;                      :obj         {:id          "aaa"
+   ;                                    :stringField "string"
+   ;                                    :numberField 1
+   ;                                    :__typename  "nested-object"}
+   ;                      :__typename  "object"}
+   ;                     {:id          "ab"
+   ;                      :stringField "this is a string too"
+   ;                      :obj         {:id          "aaa"
+   ;                                    :stringField "should not be written?" ;; not sure if we should enforce this guarantee
+   ;                                    :numberField 2
+   ;                                    :__typename  "nested-object"}
+   ;                      :__typename  "object"}]}
+   ; :entities {[:artemis.stores.mapgraph-store/cache :root]
+   ;            {:id                                  "a"
+   ;             :array1                              [[:object/id "aa"]
+   ;                                                   [:object/id "ab"]]
+   ;             :artemis.stores.mapgraph-store/cache :root}
+   ;            [:object/id "aa"]
+   ;            {:object/id          "aa"
+   ;             :object/stringField "this is a string"
+   ;             :object/obj         [:nested-object/id "aaa"]}
+   ;            [:object/id "ab"]
+   ;            {:object/id          "ab"
+   ;             :object/stringField "this is a string too"
+   ;             :object/obj         [:nested-object/id "aaa"]}
+   ;            [:nested-object/id "aaa"]
+   ;            {:nested-object/id          "aaa"
+   ;             :bested-object/stringField "string"
+   ;             :nested-object/numberField 1}}}
 
    :nested-object-returning-null
    {:query    (d/parse-document
