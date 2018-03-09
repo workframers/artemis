@@ -7,11 +7,16 @@
 (defn custom-dirs? [{:keys [directives]}]
   (some #(not (regular-directives (:directive-name %))) directives))
 
+;; context is a map with 3 keys
+;; :input-vars - variables given to the operation that field-key is being used in
+;; :vars-info - info about the kinds of variables supported by that operation
+;; :store - the MapGraphStore
+
 (defn default-val-from-var [var-info]
   (let [default-val (:default-value var-info)]
     (get default-val (:value-type default-val))))
 
-(defn val-from-arg [{:keys [input-vars vars-info]} arg]
+(defn val-from-arg [{:keys [input-vars vars-info] :as context} arg]
   (let [type (-> arg :argument-value :value-type)
         var-name (-> arg :argument-value :variable-name)]
     (if (= type :variable)
@@ -42,9 +47,9 @@
   (let [snippets (map (partial directive-snippet context) directives)]
     (str key (clojure.string/join "" snippets))))
 
-
 (defn field-key [selection context]
-  "returns generated string key if selection is 'wierd' otherwise return keywordized field name"
+  "Returns a generated string key if selection is not a plain data attribute
+   otherwise return keywordized field name"
   (cond-> (:field-name selection)
           (has-args? selection) (attach-args-to-key context selection)
           (custom-dirs? selection) (attach-directive-to-key context selection)

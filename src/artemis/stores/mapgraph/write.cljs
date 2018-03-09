@@ -71,7 +71,7 @@
   (update store :id-attrs into id-keys))
 
 (defn add
-  "Returns updated store with normalized entities merged in."
+  "Returns updated store with generic normalized entities merged in."
   [store & entities]
   (let [id-attrs (:id-attrs store)]
     (update
@@ -85,25 +85,22 @@
                   (transient ent-m)
                   (mapcat #(normalize-entities % id-attrs) entities)))))))
 
-
-;; functionality for taking a graphql result and formatting it so that it can be normalized correctly
-
 (defn combine-maps-of-seqs [list-of-maps]
   "[{:one [1] :two [2]} {:one [1]} {:three [3]}] => {:one [1 1], :two [2], :three [3]}"
   (let [m (apply (partial merge-with concat) list-of-maps)]
     (map-vals m #(if (sequential? %) % (vector %)))))
 
 (defn add-keys-to-selection [context selection stub]
-  "adds the field key and the namespaced field key used for storage to a selection"
+  "Returns the selection with the field key and the namespaced field key added to it"
   (let [selection-key (field-key selection context)
         namespaced-selection-key (str stub "." (name selection-key))]
     (assoc selection ::key selection-key
                      ::namespaced-key namespaced-selection-key)))
 
 (defn path-selections
-  "goes through the operation and pulls out all the selections
-   returning a mapping of <path> => <list-of-selections-for-path>
-   these selections are also updated to include the key that will be used when
+  "Goes through the operation and pulls out all the selections
+   Returns a mapping of <path> => <list-of-selections-for-path>
+   These selections are also updated to include the key that will be used when
    persisting results to the store."
   ([ctx selection-or-operation]
    (path-selections ctx selection-or-operation [] "root"))
@@ -126,7 +123,7 @@
 
 (defn modify-map-value [{:keys [store] :as context} selection m & [idx]]
   "does two things: namespaces the keys according to typename and attaches
-   a ::cache key if the map isn't already an entity that can be normalized"
+   a cache key if the map isn't already an entity that can be normalized"
   (if (map? m)
     (let [typename (:__typename m)
           namespaced-map
@@ -164,8 +161,8 @@
       result)))
 
 (defn mapped-update-in
-  "same as update-in but doesn't require indexes when it comes accross a vector
-   it just applies the 'update-in' accross every item in the vector"
+  "same as update-in but doesn't require indexes when it comes across a vector
+   it just applies the 'update-in' on every item in the vector"
   [m [k & ks] f]
   (let [val (get m k)]
     (if (sequential? val)

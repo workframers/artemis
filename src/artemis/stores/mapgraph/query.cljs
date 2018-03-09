@@ -32,14 +32,14 @@
        (contains? (:id-attrs store) (first ref))))
 
 (defn modify-entity-for-gql                                 ;todo: fix how wasteful and unperformant this is
-  "converts the selection's key in entity to what it would be in a normal gql response"
+  "Converts the selection's key in entity to what it would be in a normal gql response"
   [selection context ent]
   (-> ent
       (map-keys #(if (keyword? %) (-> % name keyword) %))
       (rename-keys {(field-key selection context) (-> selection :field-name keyword)})))
 
 (defn ->gql-pull-pattern [{:keys [selection-set] :as field-or-op}]
-  "this pull pattern is comprised of selections instead of keywords"
+  "Returns a pull pattern comprised of selections instead of keywords"
   (mapv (fn [sel]
           (let [sel (assoc sel ::selection true)]
             (if (:selection-set sel)
@@ -49,8 +49,10 @@
 (defn selection? [m] (::selection m))
 
 (defn expr-and-entity-for-gql
-  "if the pull fn is given a gql context, extract the expression from the selection
-   within the pull pattern and modify the entity accordingly"
+  "When the pull fn is given a gql context, extract the expression from the selection
+   within the pull pattern and modify the entity such that it's keys are formatted the
+   way they would have been in a graphql query response.
+   If no gql context, return the expression and entity as is with a nil selection."
   [expr entity gql-context]
   (let [selection (when (selection? expr) expr)
         expr (if (and gql-context selection)

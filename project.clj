@@ -34,13 +34,7 @@
                 :preloads [artemis.preloads]
                 :optimizations :none}}}}
   :profiles
-  {
-   ;:demo {:cljsbuild
-   ;       {:builds
-   ;        {:dev
-   ;         {:compiler {:source-map true
-   ;                     :optimizations :none}}}}}
-   :demo  {:figwheel
+  {:demo  {:figwheel
            {:server-port 8000
             :http-server-root "."}
            :cljsbuild
