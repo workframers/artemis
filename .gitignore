@@ -14,5 +14,6 @@ pom.xml.asc
 .hgignore
 .hg/
 /resources/js/
+*.DS_Store
 /resources/.github-token
 node_modules/

@@ -1,6 +1,6 @@
 (ns artemis.core
   (:require-macros [cljs.core.async.macros :refer [go]])
-  (:require [artemis.stores.normalized-in-memory-store :as nms]
+  (:require [artemis.stores.mapgraph.core :as nms]
             [artemis.stores.protocols :as sp]
             [artemis.network-steps.http :as http]
             [artemis.network-steps.protocols :as np]
