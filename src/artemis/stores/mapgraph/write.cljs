@@ -12,10 +12,10 @@
   [m k f x]
   (assoc! m k (f (get m k) x)))
 
-(defn ref-and-val [id-attrs val]
+(defn- ref-and-val [id-attrs val]
   {:ref (get-ref val id-attrs) :val val})
 
-(defn normalize-entities
+(defn- normalize-entities
   "Returns a sequence of normalized entities starting with map m."
   [m id-attrs]
   (lazy-seq
@@ -90,14 +90,14 @@
   (let [m (apply (partial merge-with concat) list-of-maps)]
     (map-vals m #(if (sequential? %) % (vector %)))))
 
-(defn add-keys-to-selection [context selection stub]
+(defn- add-keys-to-selection [context selection stub]
   "Returns the selection with the field key and the namespaced field key added to it"
   (let [selection-key (field-key selection context)
         namespaced-selection-key (str stub "." (name selection-key))]
     (assoc selection ::key selection-key
                      ::namespaced-key namespaced-selection-key)))
 
-(defn path-selections
+(defn- path-selections
   "Goes through the operation and pulls out all the selections
    Returns a mapping of <path> => <list-of-selections-for-path>
    These selections are also updated to include the key that will be used when
@@ -121,7 +121,7 @@
        (map (partial path-selections ctx) (:selection-set selection))))))
 
 
-(defn modify-map-value [{:keys [store] :as context} selection m & [idx]]
+(defn- modify-map-value [{:keys [store] :as context} selection m & [idx]]
   "Does two things: namespaces the keys according to typename and attaches
    a cache key if the map isn't already an entity that can be normalized"
   (if (map? m)
@@ -141,7 +141,7 @@
         namespaced-map))
     m))
 
-(defn modify-field [context result
+(defn- modify-field [context result
                     {:keys [field-alias field-name key namespaced-key] :as selection}]
   "modify fields in the result if necessary. this applies to aliased fields, fields with arguments, etc"
   (let [field-alias (keyword field-alias)
@@ -160,7 +160,7 @@
           (assoc (::key selection) field-val))
       result)))
 
-(defn mapped-update-in
+(defn- mapped-update-in
   "Same as update-in but doesn't require indexes when it comes across a vector
    it just applies the 'update-in' on every item in the vector"
   [m [k & ks] f]
@@ -173,7 +173,7 @@
         (assoc m k (mapped-update-in val ks f))
         (assoc m k (f val))))))
 
-(defn modify-fields-reducer [context result [path selections]]
+(defn- modify-fields-reducer [context result [path selections]]
   "Goes through all the pathed selections and updates the graphql result with the necessary modifications"
   (let [modify-fields (fn [res selections]
                         (reduce (partial modify-field context) res selections))]

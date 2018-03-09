@@ -4,12 +4,7 @@
             [artemis.stores.mapgraph.selections :refer [field-key aliased?]]))
 
 
-(defn clear
-  "Returns a store with unique indexes and entities cleared out."
-  [store]
-  (assoc store :entities {} :unique-indexes #{}))
-
-(defn entity?
+(defn- entity?
   "Returns true if map is an entity according to the db schema. An
   entity is a map from keywords to values with exactly one identifier
   key."
@@ -18,27 +13,27 @@
        (every? keyword? (keys map))
        (= 1 (count (filter #(contains? map %) (:id-attrs store))))))
 
-(defn ref-to
+(defn- ref-to
   "Returns a lookup ref for the entity using the schema in db, or nil
   if not found. The db does not need to contain the entity."
   [store entity]
   (get-ref entity (:id-attrs store)))
 
-(defn ref?
+(defn- ref?
   "Returns true if ref is a lookup ref according to the db schema."
   [store ref]
   (and (vector? ref)
        (= 2 (count ref))
        (contains? (:id-attrs store) (first ref))))
 
-(defn modify-entity-for-gql                                 ;todo: fix how wasteful and unperformant this is
+(defn- modify-entity-for-gql                                 ;todo: fix how wasteful and unperformant this is
   "Converts the selection's key in entity to what it would be in a normal gql response"
   [selection context ent]
   (-> ent
       (map-keys #(if (keyword? %) (-> % name keyword) %))
       (rename-keys {(field-key selection context) (-> selection :field-name keyword)})))
 
-(defn ->gql-pull-pattern [{:keys [selection-set] :as field-or-op}]
+(defn- ->gql-pull-pattern [{:keys [selection-set] :as field-or-op}]
   "Returns a pull pattern comprised of selections instead of keywords"
   (mapv (fn [sel]
           (let [sel (assoc sel ::selection true)]
@@ -46,9 +41,9 @@
               {sel (->gql-pull-pattern sel)} sel)))
         selection-set))
 
-(defn selection? [m] (::selection m))
+(defn- selection? [m] (::selection m))
 
-(defn expr-and-entity-for-gql
+(defn- expr-and-entity-for-gql
   "When the pull fn is given a gql context, extract the expression from the selection
    within the pull pattern and modify the entity such that it's keys are formatted the
    way they would have been in a graphql query response.
@@ -102,8 +97,6 @@
   A pull pattern is a vector containing any of the following forms:
 
      :key  If the entity contains :key, includes it in the result.
-           If you pass gql-context to this fn, this key must be a
-           gql selection.
 
      '*    (literal symbol asterisk) Includes all keys from the entity
            in the result.
@@ -113,8 +106,12 @@
            lookup refs. Expands each lookup ref to the entity it refers
            to, then applies pull to each of those entities using the
            sub-pattern.
-           As with key above, if gql-context is passed in then these
-           lookup refs must be gql selections."
+
+  ~~ For devs working on the internals ~~
+     If you pass in a gql-context, the keys and refs in the pull pattern
+     must all be gql selections from the generated alumbra ast.
+     There's no support for handling pull patterns that are combination
+     of selections and normal keys"
   [{:keys [entities] :as store} pattern lookup-ref & [gql-context]]
   (when-let [entity (get entities lookup-ref)]
     (reduce

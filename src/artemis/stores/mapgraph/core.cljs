@@ -30,3 +30,8 @@
   ([{:keys [id-attrs entities cache-key] :or {id-attrs #{} entities {} :cache-key ::cache}}]
    {:post [(store? %)]}
    (->MapGraphStore (conj id-attrs cache-key) entities cache-key)))
+
+(defn clear
+  "Returns a store with unique indexes and entities cleared out."
+  [store]
+  (assoc store :entities {} :id-attrs #{}))
