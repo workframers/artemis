@@ -122,7 +122,7 @@
 
 
 (defn modify-map-value [{:keys [store] :as context} selection m & [idx]]
-  "does two things: namespaces the keys according to typename and attaches
+  "Does two things: namespaces the keys according to typename and attaches
    a cache key if the map isn't already an entity that can be normalized"
   (if (map? m)
     (let [typename (:__typename m)
@@ -161,7 +161,7 @@
       result)))
 
 (defn mapped-update-in
-  "same as update-in but doesn't require indexes when it comes across a vector
+  "Same as update-in but doesn't require indexes when it comes across a vector
    it just applies the 'update-in' on every item in the vector"
   [m [k & ks] f]
   (let [val (get m k)]
@@ -174,7 +174,7 @@
         (assoc m k (f val))))))
 
 (defn modify-fields-reducer [context result [path selections]]
-  "goes through all the pathed selections and updates the graphql result with the necessary modifications"
+  "Goes through all the pathed selections and updates the graphql result with the necessary modifications"
   (let [modify-fields (fn [res selections]
                         (reduce (partial modify-field context) res selections))]
     (if (empty? path)
@@ -183,7 +183,7 @@
 
 
 (defn write-to-cache
-  "writes a graphql response to the mapgraph store"
+  "Writes a graphql response to the mapgraph store"
   [document input-vars result store]
   (let [first-op (-> document :ast :operations first)
         context {:input-vars input-vars                     ; variables given to this op
