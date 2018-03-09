@@ -1,7 +1,7 @@
 (ns artemis.stores.mapgraph-store-test
   (:require [cljs.test :refer-macros [deftest is testing async]]
             [artemis.document :as d]
-            [artemis.stores.mapgraph-store :refer [create-store write-to-cache]]))
+            [artemis.stores.mapgraph-store :refer [create-store write-to-cache query-from-cache]]))
 
 (def test-queries
   {:basic
@@ -184,7 +184,8 @@
                {:object/id          "abcde"
                 :object/stringField "this is a string too"
                 :object/numberField 3
-                :object/nullField   nil}}}
+                :object/nullField   nil
+                :__typename "object"}}}
 
    :nested-no-id
    {:query    (d/parse-document
@@ -219,6 +220,7 @@
                {:object/stringField                  "this is a string too"
                 :object/numberField                  3
                 :object/nullField                    nil
+                :__typename "object"
                 :artemis.stores.mapgraph-store/cache "root.nestedObj"}}}
 
    :nested-with-args
@@ -254,6 +256,7 @@
                {:object/stringField                  "this is a string too"
                 :object/numberField                  3
                 :object/nullField                    nil
+                :__typename "object"
                 :artemis.stores.mapgraph-store/cache "root.nestedObj({\"arg\":\"val\"})"}}}
 
    :nested-array
@@ -264,6 +267,7 @@
                    numberField
                    nullField
                    nestedArray {
+                     id
                      stringField
                      numberField
                      nullField
@@ -296,12 +300,14 @@
                {:object/id          "abcde"
                 :object/stringField "this is a string too"
                 :object/numberField 2
-                :object/nullField   nil}
+                :object/nullField   nil
+                :__typename "object"}
                [:object/id "abcdef"]
                {:object/id          "abcdef"
                 :object/stringField "this is a string also"
                 :object/numberField 3
-                :object/nullField   nil}}}
+                :object/nullField   nil
+                :__typename "object"}}}
 
    :nested-array-with-null
    {:query    (d/parse-document
@@ -311,6 +317,7 @@
                    numberField
                    nullField
                    nestedArray {
+                     id
                      stringField
                      numberField
                      nullField
@@ -338,7 +345,8 @@
                {:object/id          "abcde"
                 :object/stringField "this is a string too"
                 :object/numberField 2
-                :object/nullField   nil}}}
+                :object/nullField   nil
+                :__typename "object"}}}
 
    :nested-array-without-ids
    {:query    (d/parse-document
@@ -378,11 +386,13 @@
                {:object/stringField                  "this is a string too"
                 :object/numberField                  2
                 :object/nullField                    nil
+                :__typename "object"
                 :artemis.stores.mapgraph-store/cache "root.nestedArray.0"}
                [:artemis.stores.mapgraph-store/cache "root.nestedArray.1"]
                {:object/stringField                  "this is a string also"
                 :object/numberField                  3
                 :object/nullField                    nil
+                :__typename "object"
                 :artemis.stores.mapgraph-store/cache "root.nestedArray.1"}}}
 
    :nested-array-with-nulls-and-no-ids
@@ -420,6 +430,7 @@
                {:object/stringField                  "this is a string also"
                 :object/numberField                  3
                 :object/nullField                    nil
+                :__typename "object"
                 :artemis.stores.mapgraph-store/cache "root.nestedArray.1"}}}
 
    :simple-array
@@ -497,7 +508,8 @@
                [:object/id "aa"]
                {:object/id          "aa"
                 :object/stringField "this is a string"
-                :object/numberField 1}}}
+                :object/numberField 1
+                :__typename "object"}}}
 
    :obj-in-different-array-paths
    {:query    (d/parse-document
@@ -546,15 +558,18 @@
                [:object/id "aa"]
                {:object/id          "aa"
                 :object/stringField "this is a string"
-                :object/obj         [:nested-object/id "aaa"]}
+                :object/obj         [:nested-object/id "aaa"]
+                :__typename "object"}
                [:object/id "ab"]
                {:object/id          "ab"
                 :object/stringField "this is a string too"
-                :object/obj         [:nested-object/id "aaa"]}
+                :object/obj         [:nested-object/id "aaa"]
+                :__typename "object"}
                [:nested-object/id "aaa"]
                {:nested-object/id          "aaa"
                 :nested-object/stringField "string"
-                :nested-object/numberField 1}}}
+                :nested-object/numberField 1
+                :__typename "nested-object"}}}
 
    ;:obj-twice-in-same-array-path
    ;{:query    (d/parse-document
@@ -633,7 +648,7 @@
                 :nestedObj                           nil
                 :artemis.stores.mapgraph-store/cache :root}}}})
 
-(defn query-test [k]
+(defn write-test [k]
   (testing (str "testing normalized cache persistence for query type: " k)
     (let [{:keys [query input-vars result entities]} (get test-queries k)
           new-cache (write-to-cache query result
@@ -641,5 +656,16 @@
                                      :store (create-store {:id-attrs #{:object/id :nested-object/id}})})]
       (is (= entities (:entities new-cache))))))
 
-(deftest test-query-persistence
+(deftest test-cache-persistence
+  (doall (map write-test (keys test-queries))))
+
+(defn query-test [k]
+  (testing (str "testing normalized cache querying for query type: " k)
+    (let [{:keys [query input-vars result entities]} (get test-queries k)
+          store (create-store {:id-attrs #{:object/id :nested-object/id}
+                               :entities entities})
+          response (query-from-cache query {:input-vars input-vars :store store})]
+      (is (= result response)))))
+
+(deftest test-cache-querying
   (doall (map query-test (keys test-queries))))
