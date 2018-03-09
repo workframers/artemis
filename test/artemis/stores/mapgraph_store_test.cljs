@@ -1,7 +1,9 @@
 (ns artemis.stores.mapgraph-store-test
   (:require [cljs.test :refer-macros [deftest is testing async]]
             [artemis.document :as d]
-            [artemis.stores.mapgraph-store :refer [create-store write-to-cache query-from-cache]]))
+            [artemis.stores.protocols :as sp]
+            ;[artemis.stores.mapgraph-store :refer [create-store]]
+            [artemis.stores.mapgraph.core :refer [create-store]]))
 
 (def test-queries
   {:basic
@@ -16,12 +18,12 @@
                :stringField "this is a string"
                :numberField 3
                :nullField   nil}
-    :entities {[:artemis.stores.mapgraph-store/cache :root]
-               {:id                                  "abcd"
-                :stringField                         "this is a string"
-                :numberField                         3
-                :nullField                           nil
-                :artemis.stores.mapgraph-store/cache :root}}}
+    :entities {[::cache :root]
+               {:id          "abcd"
+                :stringField "this is a string"
+                :numberField 3
+                :nullField   nil
+                ::cache      :root}}}
 
    :args
    {:query    (d/parse-document
@@ -35,12 +37,12 @@
                :stringField "The arg was 1"
                :numberField 3
                :nullField   nil}
-    :entities {[:artemis.stores.mapgraph-store/cache :root]
-               {:id                                  "abcd"
-                "stringField({\"arg\":1})"           "The arg was 1"
-                :numberField                         3
-                :nullField                           nil
-                :artemis.stores.mapgraph-store/cache :root}}}
+    :entities {[::cache :root]
+               {:id                        "abcd"
+                "stringField({\"arg\":1})" "The arg was 1"
+                :numberField               3
+                :nullField                 nil
+                ::cache                    :root}}}
 
    :aliased
    {:query    (d/parse-document
@@ -54,12 +56,12 @@
                :aliasedField "this is a string"
                :numberField  3
                :nullField    nil}
-    :entities {[:artemis.stores.mapgraph-store/cache :root]
-               {:id                                  "abcd"
-                :stringField                         "this is a string"
-                :numberField                         3
-                :nullField                           nil
-                :artemis.stores.mapgraph-store/cache :root}}}
+    :entities {[::cache :root]
+               {:id          "abcd"
+                :stringField "this is a string"
+                :numberField 3
+                :nullField   nil
+                ::cache      :root}}}
 
    :aliased-with-args
    {:query    (d/parse-document
@@ -75,13 +77,13 @@
                :aliasedField2 "The arg was 2"
                :numberField   3
                :nullField     nil}
-    :entities {[:artemis.stores.mapgraph-store/cache :root]
-               {:id                                  "abcd"
-                "stringField({\"arg\":1})"           "The arg was 1"
-                "stringField({\"arg\":2})"           "The arg was 2"
-                :numberField                         3
-                :nullField                           nil
-                :artemis.stores.mapgraph-store/cache :root}}}
+    :entities {[::cache :root]
+               {:id                        "abcd"
+                "stringField({\"arg\":1})" "The arg was 1"
+                "stringField({\"arg\":2})" "The arg was 2"
+                :numberField               3
+                :nullField                 nil
+                ::cache                    :root}}}
 
    :with-vars
    {:query      (d/parse-document
@@ -98,12 +100,12 @@
                  :stringField "This worked"
                  :numberField 5
                  :nullField   nil}
-    :entities   {[:artemis.stores.mapgraph-store/cache :root]
+    :entities   {[::cache :root]
                  {:id                                             "abcd"
                   :nullField                                      nil
                   "numberField({\"intArg\":5,\"floatArg\":3.14})" 5
                   "stringField({\"arg\":\"This is a string\"})"   "This worked"
-                  :artemis.stores.mapgraph-store/cache            :root}}}
+                  ::cache                                         :root}}}
 
    :default-vars
    {:query      (d/parse-document
@@ -123,12 +125,12 @@
                  :stringField "This worked"
                  :numberField 5
                  :nullField   nil}
-    :entities   {[:artemis.stores.mapgraph-store/cache :root]
+    :entities   {[::cache :root]
                  {:id                                                   "abcd"
                   :nullField                                            nil
                   "numberField({\"intArg\":5,\"floatArg\":3.14})"       5
                   "stringField({\"arg\":\"This is a default string\"})" "This worked"
-                  :artemis.stores.mapgraph-store/cache                  :root}}}
+                  ::cache                                               :root}}}
 
    :directives
    {:query    (d/parse-document
@@ -142,12 +144,12 @@
                :firstName "James"
                :lastName  "BOND"
                :birthDate "20-05-1940"}
-    :entities {[:artemis.stores.mapgraph-store/cache :root]
+    :entities {[::cache :root]
                {:id                                                 "abcd"
                 :firstName                                          "James"
                 "lastName@upperCase"                                "BOND"
                 "birthDate@dateFormat({\"format\":\"DD-MM-YYYY\"})" "20-05-1940"
-                :artemis.stores.mapgraph-store/cache                :root}}}
+                ::cache                                             :root}}}
 
    :nested
    {:query    (d/parse-document
@@ -173,19 +175,19 @@
                              :numberField 3
                              :nullField   nil
                              :__typename  "object"}}
-    :entities {[:artemis.stores.mapgraph-store/cache :root]
-               {:id                                  "abcd"
-                :stringField                         "this is a string"
-                :numberField                         3
-                :nullField                           nil
-                :nestedObj                           [:object/id "abcde"]
-                :artemis.stores.mapgraph-store/cache :root}
+    :entities {[::cache :root]
+               {:id          "abcd"
+                :stringField "this is a string"
+                :numberField 3
+                :nullField   nil
+                :nestedObj   [:object/id "abcde"]
+                ::cache      :root}
                [:object/id "abcde"]
                {:object/id          "abcde"
                 :object/stringField "this is a string too"
                 :object/numberField 3
                 :object/nullField   nil
-                :__typename "object"}}}
+                :__typename         "object"}}}
 
    :nested-no-id
    {:query    (d/parse-document
@@ -209,19 +211,19 @@
                              :numberField 3
                              :nullField   nil
                              :__typename  "object"}}
-    :entities {[:artemis.stores.mapgraph-store/cache :root]
-               {:id                                  "abcd"
-                :stringField                         "this is a string"
-                :numberField                         3
-                :nullField                           nil
-                :nestedObj                           [:artemis.stores.mapgraph-store/cache "root.nestedObj"]
-                :artemis.stores.mapgraph-store/cache :root}
-               [:artemis.stores.mapgraph-store/cache "root.nestedObj"]
-               {:object/stringField                  "this is a string too"
-                :object/numberField                  3
-                :object/nullField                    nil
-                :__typename "object"
-                :artemis.stores.mapgraph-store/cache "root.nestedObj"}}}
+    :entities {[::cache :root]
+               {:id          "abcd"
+                :stringField "this is a string"
+                :numberField 3
+                :nullField   nil
+                :nestedObj   [::cache "root.nestedObj"]
+                ::cache      :root}
+               [::cache "root.nestedObj"]
+               {:object/stringField "this is a string too"
+                :object/numberField 3
+                :object/nullField   nil
+                :__typename         "object"
+                ::cache             "root.nestedObj"}}}
 
    :nested-with-args
    {:query    (d/parse-document
@@ -245,19 +247,19 @@
                              :numberField 3
                              :nullField   nil
                              :__typename  "object"}}
-    :entities {[:artemis.stores.mapgraph-store/cache :root]
-               {:id                                  "abcd"
-                :stringField                         "this is a string"
-                :numberField                         3
-                :nullField                           nil
-                "nestedObj({\"arg\":\"val\"})"       [:artemis.stores.mapgraph-store/cache "root.nestedObj({\"arg\":\"val\"})"]
-                :artemis.stores.mapgraph-store/cache :root}
-               [:artemis.stores.mapgraph-store/cache "root.nestedObj({\"arg\":\"val\"})"]
-               {:object/stringField                  "this is a string too"
-                :object/numberField                  3
-                :object/nullField                    nil
-                :__typename "object"
-                :artemis.stores.mapgraph-store/cache "root.nestedObj({\"arg\":\"val\"})"}}}
+    :entities {[::cache :root]
+               {:id                            "abcd"
+                :stringField                   "this is a string"
+                :numberField                   3
+                :nullField                     nil
+                "nestedObj({\"arg\":\"val\"})" [::cache "root.nestedObj({\"arg\":\"val\"})"]
+                ::cache                        :root}
+               [::cache "root.nestedObj({\"arg\":\"val\"})"]
+               {:object/stringField "this is a string too"
+                :object/numberField 3
+                :object/nullField   nil
+                :__typename         "object"
+                ::cache             "root.nestedObj({\"arg\":\"val\"})"}}}
 
    :nested-array
    {:query    (d/parse-document
@@ -288,26 +290,26 @@
                               :numberField 3
                               :nullField   nil
                               :__typename  "object"}]}
-    :entities {[:artemis.stores.mapgraph-store/cache :root]
-               {:id                                  "abcd"
-                :stringField                         "this is a string"
-                :numberField                         1
-                :nullField                           nil
-                :nestedArray                         [[:object/id "abcde"]
-                                                      [:object/id "abcdef"]]
-                :artemis.stores.mapgraph-store/cache :root}
+    :entities {[::cache :root]
+               {:id          "abcd"
+                :stringField "this is a string"
+                :numberField 1
+                :nullField   nil
+                :nestedArray [[:object/id "abcde"]
+                              [:object/id "abcdef"]]
+                ::cache      :root}
                [:object/id "abcde"]
                {:object/id          "abcde"
                 :object/stringField "this is a string too"
                 :object/numberField 2
                 :object/nullField   nil
-                :__typename "object"}
+                :__typename         "object"}
                [:object/id "abcdef"]
                {:object/id          "abcdef"
                 :object/stringField "this is a string also"
                 :object/numberField 3
                 :object/nullField   nil
-                :__typename "object"}}}
+                :__typename         "object"}}}
 
    :nested-array-with-null
    {:query    (d/parse-document
@@ -334,19 +336,19 @@
                               :nullField   nil
                               :__typename  "object"}
                              nil]}
-    :entities {[:artemis.stores.mapgraph-store/cache :root]
-               {:id                                  "abcd"
-                :stringField                         "this is a string"
-                :numberField                         1
-                :nullField                           nil
-                :nestedArray                         [[:object/id "abcde"] nil]
-                :artemis.stores.mapgraph-store/cache :root}
+    :entities {[::cache :root]
+               {:id          "abcd"
+                :stringField "this is a string"
+                :numberField 1
+                :nullField   nil
+                :nestedArray [[:object/id "abcde"] nil]
+                ::cache      :root}
                [:object/id "abcde"]
                {:object/id          "abcde"
                 :object/stringField "this is a string too"
                 :object/numberField 2
                 :object/nullField   nil
-                :__typename "object"}}}
+                :__typename         "object"}}}
 
    :nested-array-without-ids
    {:query    (d/parse-document
@@ -374,26 +376,26 @@
                               :numberField 3
                               :nullField   nil
                               :__typename  "object"}]}
-    :entities {[:artemis.stores.mapgraph-store/cache :root]
-               {:id                                  "abcd"
-                :stringField                         "this is a string"
-                :numberField                         1
-                :nullField                           nil
-                :nestedArray                         [[:artemis.stores.mapgraph-store/cache "root.nestedArray.0"]
-                                                      [:artemis.stores.mapgraph-store/cache "root.nestedArray.1"]]
-                :artemis.stores.mapgraph-store/cache :root}
-               [:artemis.stores.mapgraph-store/cache "root.nestedArray.0"]
-               {:object/stringField                  "this is a string too"
-                :object/numberField                  2
-                :object/nullField                    nil
-                :__typename "object"
-                :artemis.stores.mapgraph-store/cache "root.nestedArray.0"}
-               [:artemis.stores.mapgraph-store/cache "root.nestedArray.1"]
-               {:object/stringField                  "this is a string also"
-                :object/numberField                  3
-                :object/nullField                    nil
-                :__typename "object"
-                :artemis.stores.mapgraph-store/cache "root.nestedArray.1"}}}
+    :entities {[::cache :root]
+               {:id          "abcd"
+                :stringField "this is a string"
+                :numberField 1
+                :nullField   nil
+                :nestedArray [[::cache "root.nestedArray.0"]
+                              [::cache "root.nestedArray.1"]]
+                ::cache      :root}
+               [::cache "root.nestedArray.0"]
+               {:object/stringField "this is a string too"
+                :object/numberField 2
+                :object/nullField   nil
+                :__typename         "object"
+                ::cache             "root.nestedArray.0"}
+               [::cache "root.nestedArray.1"]
+               {:object/stringField "this is a string also"
+                :object/numberField 3
+                :object/nullField   nil
+                :__typename         "object"
+                ::cache             "root.nestedArray.1"}}}
 
    :nested-array-with-nulls-and-no-ids
    {:query    (d/parse-document
@@ -418,20 +420,20 @@
                               :numberField 3
                               :nullField   nil
                               :__typename  "object"}]}
-    :entities {[:artemis.stores.mapgraph-store/cache :root]
-               {:id                                  "abcd"
-                :stringField                         "this is a string"
-                :numberField                         1
-                :nullField                           nil
-                :nestedArray                         [nil
-                                                      [:artemis.stores.mapgraph-store/cache "root.nestedArray.1"]]
-                :artemis.stores.mapgraph-store/cache :root}
-               [:artemis.stores.mapgraph-store/cache "root.nestedArray.1"]
-               {:object/stringField                  "this is a string also"
-                :object/numberField                  3
-                :object/nullField                    nil
-                :__typename "object"
-                :artemis.stores.mapgraph-store/cache "root.nestedArray.1"}}}
+    :entities {[::cache :root]
+               {:id          "abcd"
+                :stringField "this is a string"
+                :numberField 1
+                :nullField   nil
+                :nestedArray [nil
+                              [::cache "root.nestedArray.1"]]
+                ::cache      :root}
+               [::cache "root.nestedArray.1"]
+               {:object/stringField "this is a string also"
+                :object/numberField 3
+                :object/nullField   nil
+                :__typename         "object"
+                ::cache             "root.nestedArray.1"}}}
 
    :simple-array
    {:query    (d/parse-document
@@ -447,13 +449,13 @@
                :numberField 3
                :nullField   nil
                :simpleArray ["one" "two" "three"]}
-    :entities {[:artemis.stores.mapgraph-store/cache :root]
-               {:id                                  "abcd"
-                :stringField                         "this is a string"
-                :numberField                         3
-                :nullField                           nil
-                :simpleArray                         ["one" "two" "three"]
-                :artemis.stores.mapgraph-store/cache :root}}}
+    :entities {[::cache :root]
+               {:id          "abcd"
+                :stringField "this is a string"
+                :numberField 3
+                :nullField   nil
+                :simpleArray ["one" "two" "three"]
+                ::cache      :root}}}
 
    :simple-array-with-nulls
    {:query    (d/parse-document
@@ -469,13 +471,13 @@
                :numberField 3
                :nullField   nil
                :simpleArray [nil "two" "three"]}
-    :entities {[:artemis.stores.mapgraph-store/cache :root]
-               {:id                                  "abcd"
-                :stringField                         "this is a string"
-                :numberField                         3
-                :nullField                           nil
-                :simpleArray                         [nil "two" "three"]
-                :artemis.stores.mapgraph-store/cache :root}}}
+    :entities {[::cache :root]
+               {:id          "abcd"
+                :stringField "this is a string"
+                :numberField 3
+                :nullField   nil
+                :simpleArray [nil "two" "three"]
+                ::cache      :root}}}
 
    :obj-in-different-paths
    {:query    (d/parse-document
@@ -500,16 +502,16 @@
                          :numberField 1
                          :__typename  "object"}}
 
-    :entities {[:artemis.stores.mapgraph-store/cache :root]
-               {:id                                  "a"
-                :object1                             [:object/id "aa"]
-                :object2                             [:object/id "aa"]
-                :artemis.stores.mapgraph-store/cache :root}
+    :entities {[::cache :root]
+               {:id      "a"
+                :object1 [:object/id "aa"]
+                :object2 [:object/id "aa"]
+                ::cache  :root}
                [:object/id "aa"]
                {:object/id          "aa"
                 :object/stringField "this is a string"
                 :object/numberField 1
-                :__typename "object"}}}
+                :__typename         "object"}}}
 
    :obj-in-different-array-paths
    {:query    (d/parse-document
@@ -550,26 +552,26 @@
                                        :__typename  "nested-object"}
                          :__typename  "object"}]}
 
-    :entities {[:artemis.stores.mapgraph-store/cache :root]
-               {:id                                  "a"
-                :array1                              [[:object/id "aa"]]
-                :array2                              [[:object/id "ab"]]
-                :artemis.stores.mapgraph-store/cache :root}
+    :entities {[::cache :root]
+               {:id     "a"
+                :array1 [[:object/id "aa"]]
+                :array2 [[:object/id "ab"]]
+                ::cache :root}
                [:object/id "aa"]
                {:object/id          "aa"
                 :object/stringField "this is a string"
                 :object/obj         [:nested-object/id "aaa"]
-                :__typename "object"}
+                :__typename         "object"}
                [:object/id "ab"]
                {:object/id          "ab"
                 :object/stringField "this is a string too"
                 :object/obj         [:nested-object/id "aaa"]
-                :__typename "object"}
+                :__typename         "object"}
                [:nested-object/id "aaa"]
                {:nested-object/id          "aaa"
                 :nested-object/stringField "string"
                 :nested-object/numberField 1
-                :__typename "nested-object"}}}
+                :__typename                "nested-object"}}}
 
    ;:obj-twice-in-same-array-path
    ;{:query    (d/parse-document
@@ -602,11 +604,11 @@
    ;                                    :numberField 2
    ;                                    :__typename  "nested-object"}
    ;                      :__typename  "object"}]}
-   ; :entities {[:artemis.stores.mapgraph-store/cache :root]
+   ; :entities {[::cache :root]
    ;            {:id                                  "a"
    ;             :array1                              [[:object/id "aa"]
    ;                                                   [:object/id "ab"]]
-   ;             :artemis.stores.mapgraph-store/cache :root}
+   ;             ::cache :root}
    ;            [:object/id "aa"]
    ;            {:object/id          "aa"
    ;             :object/stringField "this is a string"
@@ -640,21 +642,21 @@
                :numberField 3
                :nullField   nil
                :nestedObj   nil}
-    :entities {[:artemis.stores.mapgraph-store/cache :root]
-               {:id                                  "abcd"
-                :stringField                         "this is a string"
-                :numberField                         3
-                :nullField                           nil
-                :nestedObj                           nil
-                :artemis.stores.mapgraph-store/cache :root}}}})
+    :entities {[::cache :root]
+               {:id          "abcd"
+                :stringField "this is a string"
+                :numberField 3
+                :nullField   nil
+                :nestedObj   nil
+                ::cache      :root}}}})
 
 (defn write-test [k]
   (testing (str "testing normalized cache persistence for query type: " k)
     (let [{:keys [query input-vars result entities]} (get test-queries k)
-          new-cache (write-to-cache query result
-                                    {:input-vars input-vars
-                                     :store (create-store {:id-attrs #{:object/id :nested-object/id}})})]
-      (is (= entities (:entities new-cache))))))
+          initial-store (create-store {:id-attrs #{:object/id :nested-object/id}
+                                       :cache-key ::cache})
+          new-store (sp/-write initial-store result query input-vars)]
+      (is (= entities (:entities new-store))))))
 
 (deftest test-cache-persistence
   (doall (map write-test (keys test-queries))))
@@ -663,8 +665,9 @@
   (testing (str "testing normalized cache querying for query type: " k)
     (let [{:keys [query input-vars result entities]} (get test-queries k)
           store (create-store {:id-attrs #{:object/id :nested-object/id}
-                               :entities entities})
-          response (query-from-cache query {:input-vars input-vars :store store})]
+                               :entities entities
+                               :cache-key ::cache})
+          response (sp/-query store query input-vars false)]
       (is (= result response)))))
 
 (deftest test-cache-querying
