@@ -573,55 +573,6 @@
                 :nested-object/numberField 1
                 :__typename                "nested-object"}}}
 
-   ;:obj-twice-in-same-array-path
-   ;{:query    (d/parse-document
-   ;             " {
-   ;                id
-   ;                array1 {
-   ;                  id
-   ;                  stringField
-   ;                  obj {
-   ;                    id
-   ;                    stringField
-   ;                    numberField
-   ;                    __typename
-   ;                  }
-   ;                  __typename
-   ;                }
-   ;              }")
-   ; :result   {:id     "a"
-   ;            :array1 [{:id          "aa"
-   ;                      :stringField "this is a string"
-   ;                      :obj         {:id          "aaa"
-   ;                                    :stringField "string"
-   ;                                    :numberField 1
-   ;                                    :__typename  "nested-object"}
-   ;                      :__typename  "object"}
-   ;                     {:id          "ab"
-   ;                      :stringField "this is a string too"
-   ;                      :obj         {:id          "aaa"
-   ;                                    :stringField "should not be written?" ;; not sure if we should enforce this guarantee
-   ;                                    :numberField 2
-   ;                                    :__typename  "nested-object"}
-   ;                      :__typename  "object"}]}
-   ; :entities {[::cache :root]
-   ;            {:id                                  "a"
-   ;             :array1                              [[:object/id "aa"]
-   ;                                                   [:object/id "ab"]]
-   ;             ::cache :root}
-   ;            [:object/id "aa"]
-   ;            {:object/id          "aa"
-   ;             :object/stringField "this is a string"
-   ;             :object/obj         [:nested-object/id "aaa"]}
-   ;            [:object/id "ab"]
-   ;            {:object/id          "ab"
-   ;             :object/stringField "this is a string too"
-   ;             :object/obj         [:nested-object/id "aaa"]}
-   ;            [:nested-object/id "aaa"]
-   ;            {:nested-object/id          "aaa"
-   ;             :bested-object/stringField "string"
-   ;             :nested-object/numberField 1}}}
-
    :nested-object-returning-null
    {:query    (d/parse-document
                 "{
@@ -659,7 +610,8 @@
       (is (= entities (:entities new-store))))))
 
 (deftest test-cache-persistence
-  (doall (map write-test (keys test-queries))))
+  (doseq [test-query (keys test-queries)]
+    (write-test test-query)))
 
 (defn query-test [k]
   (testing (str "testing normalized cache querying for query type: " k)
@@ -671,4 +623,5 @@
       (is (= result response)))))
 
 (deftest test-cache-querying
-  (doall (map query-test (keys test-queries))))
+  (doseq [test-query (keys test-queries)]
+    (query-test test-query)))

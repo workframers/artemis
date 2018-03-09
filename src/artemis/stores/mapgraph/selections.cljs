@@ -1,5 +1,6 @@
 (ns artemis.stores.mapgraph.selections
-  (:require [artemis.stores.mapgraph.common :refer [get-ref like]]))
+  (:require [clojure.string :as string]
+            [artemis.stores.mapgraph.common :refer [get-ref like]]))
 
 (def regular-directives #{"include" "skip"})
 (defn aliased? [selection] (:field-alias selection))
@@ -36,20 +37,20 @@
 (defn attach-args-to-key [key context {:keys [arguments]}]
   "Returns an updated field key with argument string snippets appended"
   (let [snippets (map (partial arg-snippet context) arguments)]
-    (str key "({" (clojure.string/join "," snippets) "})")))
+    (str key "({" (string/join "," snippets) "})")))
 
 (defn directive-snippet [context {:keys [directive-name arguments] :as directive}]
   "Given a directive for a selection, returns a string used in generating the field key"
   (let [arg-snippets (map (partial arg-snippet context) arguments)
         args-string (if-not (empty? arg-snippets)
-                      (str "({" (clojure.string/join "," arg-snippets) "})")
+                      (str "({" (string/join "," arg-snippets) "})")
                       "")]
     (str "@" directive-name args-string)))
 
 (defn attach-directive-to-key [key context {:keys [directives]}]
   "Returns an updated field key with the directive string snippet appended"
   (let [snippets (map (partial directive-snippet context) directives)]
-    (str key (clojure.string/join "" snippets))))
+    (str key (string/join "" snippets))))
 
 (defn field-key [selection context]
   "Returns a generated string key if selection is not a plain data attribute
