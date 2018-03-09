@@ -17,7 +17,6 @@
                  closed?    (nil? (<! local-chan))]
              (is (= (:data result) "Luke Skywalker"))
              (is (= (:variables result) variables))
-             (is (= (:source result) :local))
              (is (= (:network-status result) :ready))
              (is (false? (:in-flight? result)))
              (is closed?)
@@ -34,7 +33,6 @@
              (is (nil? (:data result)))
              (is (= 1 (count (:errors result))))
              (is (= (:variables result) variables))
-             (is (= (:source result) :local))
              (is (= (:network-status result) :ready))
              (is (false? (:in-flight? result)))
              (is closed?)
@@ -51,7 +49,6 @@
              (is (= (:data result) "Luke Skywalker"))
              (is (nil? (:errors result)))
              (is (= (:variables result) variables))
-             (is (= (:source result) :local))
              (is (= (:network-status result) :ready))
              (is (false? (:in-flight? result)))
              (is closed?)
@@ -71,7 +68,6 @@
            (go (let [local-result (<! result-chan)]
                  (is (nil? (:data local-result)))
                  (is (= (:variables local-result) variables))
-                 (is (= (:source local-result) :local))
                  (is (= (:network-status local-result) :fetching))
                  (is (true? (:in-flight? local-result))))
 
@@ -82,7 +78,6 @@
                      closed?       (nil? (<! result-chan))]
                  (is (= (:data remote-result) "Luke Skywalker"))
                  (is (= (:variables remote-result) variables))
-                 (is (= (:source remote-result) :remote))
                  (is (= (:network-status remote-result) :ready))
                  (is (false? (:in-flight? remote-result)))
                  (is (= @cache {"The Empire Strikes Back" "Luke Skywalker"}))
@@ -103,7 +98,6 @@
            (go (let [local-result (<! result-chan)]
                  (is (= (:data local-result) "R2D2"))
                  (is (= (:variables local-result) variables))
-                 (is (= (:source local-result) :local))
                  (is (= (:network-status local-result) :fetching))
                  (is (true? (:in-flight? local-result))))
 
@@ -114,7 +108,6 @@
                      closed?       (nil? (<! result-chan))]
                  (is (= (:data remote-result) "Luke Skywalker"))
                  (is (= (:variables remote-result) variables))
-                 (is (= (:source remote-result) :remote))
                  (is (= (:network-status remote-result) :ready))
                  (is (false? (:in-flight? remote-result)))
                  (is (= @cache {"The Empire Strikes Back" "Luke Skywalker"}))
@@ -135,7 +128,6 @@
            (go (let [local-result (<! result-chan)]
                  (is (nil? (:data local-result)))
                  (is (= (:variables local-result) variables))
-                 (is (= (:source local-result) :local))
                  (is (= (:network-status local-result) :fetching))
                  (is (true? (:in-flight? local-result))))
 
@@ -146,7 +138,6 @@
                      closed?       (nil? (<! result-chan))]
                  (is (= (:data remote-result) "Luke Skywalker"))
                  (is (= (:variables remote-result) variables))
-                 (is (= (:source remote-result) :remote))
                  (is (= (:network-status remote-result) :ready))
                  (is (false? (:in-flight? remote-result)))
                  (is (= @cache {"The Empire Strikes Back" "Luke Skywalker"}))
@@ -166,7 +157,6 @@
          (go (let [local-result  (<! result-chan)]
                (is (nil? (:data local-result)))
                (is (= (:variables local-result) variables))
-               (is (= (:source local-result) :local))
                (is (= (:network-status local-result) :fetching))
                (is (true? (:in-flight? local-result)))
                (is (= @cache {})))
@@ -178,7 +168,6 @@
                    closed?       (nil? (<! result-chan))]
                (is (= (:data remote-result) "Luke Skywalker"))
                (is (= (:variables remote-result) variables))
-               (is (= (:source remote-result) :remote))
                (is (= (:network-status remote-result) :ready))
                (is (false? (:in-flight? remote-result)))
                (is (= @cache {"The Empire Strikes Back" "Luke Skywalker"}))

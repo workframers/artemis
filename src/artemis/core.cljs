@@ -1,6 +1,6 @@
 (ns artemis.core
   (:require-macros [cljs.core.async.macros :refer [go]])
-  (:require [artemis.stores.mapgraph.core :as nms]
+  (:require [artemis.stores.mapgraph.core :as mgs]
             [artemis.stores.protocols :as sp]
             [artemis.network-steps.http :as http]
             [artemis.network-steps.protocols :as np]
@@ -27,7 +27,7 @@
 (defn create-client
   "Returns a new client specified by store, network-chain, and options."
   ([]
-   (create-client (nms/create-store)))
+   (create-client (mgs/create-store)))
   ([store]
    (create-client store (http/create-network-step)))
   ([store network-chain]
@@ -151,7 +151,6 @@
                      (-> local-result
                          result->message
                          (assoc :variables      variables
-                                :source         :local
                                 :in-flight?     false
                                 :network-status :ready)))
          (async/close! out-chan))
@@ -163,7 +162,6 @@
                      (-> local-result
                          result->message
                          (assoc :variables      variables
-                                :source         :local
                                 :in-flight?     nil-local-data?
                                 :network-status (if nil-local-data? :fetching :ready))))
          (if nil-local-data?
@@ -176,7 +174,6 @@
                                                     variables))
                    (async/put! out-chan (assoc message
                                                :variables      variables
-                                               :source         :remote
                                                :in-flight?     false
                                                :network-status :ready))
                    (async/close! out-chan))))
@@ -189,7 +186,6 @@
                      (-> local-result
                          result->message
                          (assoc :variables      variables
-                                :source         :local
                                 :in-flight?     true
                                 :network-status :fetching)))
          (go (let [remote-result (async/<! remote-result-chan)
@@ -200,7 +196,6 @@
                                                 variables))
                (async/put! out-chan (assoc message
                                            :variables      variables
-                                           :source         :remote
                                            :in-flight?     false
                                            :network-status :ready))
                (async/close! out-chan))))
@@ -209,7 +204,6 @@
        (let [remote-result-chan (remote-read)]
          (async/put! out-chan {:data           nil
                                :variables      variables
-                               :source         :local
                                :in-flight?     true
                                :network-status :fetching})
          (go (let [remote-result (async/<! remote-result-chan)
@@ -220,7 +214,6 @@
                                                 variables))
                (async/put! out-chan (assoc message
                                            :variables      variables
-                                           :source         :remote
                                            :in-flight?     false
                                            :network-status :ready))
                (async/close! out-chan))))
@@ -260,7 +253,6 @@
      (async/put! out-chan
                  {:data           optimistic-result
                   :variables      variables
-                  :source         :local
                   :in-flight?     true
                   :network-status :fetching})
      (go (let [result  (<! (np/-exec (:network-chain client)
@@ -275,7 +267,6 @@
            (async/put! out-chan
                        (assoc message
                               :variables      variables
-                              :source         :remote
                               :in-flight?     false
                               :network-status :ready))
            (async/close! out-chan)))

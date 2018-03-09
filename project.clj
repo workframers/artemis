@@ -7,13 +7,14 @@
                  [org.clojure/clojurescript "1.9.946"]
                  [alumbra/parser "0.1.7"]
                  [alumbra/errors "0.1.1"]
+                 ;; todo - move this into dev profile
                  [cljs-http "0.1.44"]
                  [figwheel-sidecar "0.5.0"]
                  [binaryage/devtools "0.9.9"]]
   :plugins [[lein-figwheel "0.5.14"]
             [lein-cljsbuild "1.1.7"]
             [lein-doo "0.1.8"]]
-  :aliases {"demo" ["with-profile" "+demo" "figwheel"]
+  :aliases {"example-re-frame" ["with-profile" "+example,+re-frame" "figwheel"]
             "test" ["test-jvm"]
             "test-chrome" ["with-profile" "test" "doo" "chrome" "test" "once"]
             "test-jvm" ["with-profile" "test" "doo" "rhino" "test" "once"]}
@@ -21,9 +22,9 @@
   :figwheel
   {:server-port 8000
    :http-server-root "."}
-
   :cljsbuild
   {:builds
+   ;; todo - move this into dev profile
    {:dev
     {:source-paths ["src"]
      :figwheel true
@@ -34,19 +35,23 @@
                 :preloads [artemis.preloads]
                 :optimizations :none}}}}
   :profiles
-  {:demo  {:figwheel
-           {:server-port 8000
-            :http-server-root "."}
-           :cljsbuild
-           {:builds
-            {:dev
-             {:source-paths ["src" "demo"]
-              :figwheel true
-              :compiler {:output-to "resources/js/main.js"
-                         :output-dir "resources/js"
-                         :asset-path "js/"
-                         :main artemis.demo
-                         :optimizations :none}}}}}
+  {:example {:dependencies [[binaryage/devtools "0.9.9"]]
+             :figwheel
+             {:server-port 8000
+              :http-server-root "."}
+             :cljsbuild
+             {:builds
+              {:dev
+               {:source-paths ["src" "examples/shared"]
+                :figwheel {:on-jsload example.core/on-load}
+                :compiler {:output-to "resources/js/main.js"
+                           :output-dir "resources/js"
+                           :asset-path "js/"
+                           :optimizations :none
+                           :main example.core
+                           :preloads [devtools.preload]}}}}}
+   :re-frame {:dependencies [[re-frame "0.10.5"]]
+              :cljsbuild {:builds {:dev {:source-paths ["examples/re_frame"]}}}}
    :test {:dependencies [[org.mozilla/rhino "1.7.7"]
                          [org.clojure/test.check "0.9.0"]
                          [orchestra "2017.11.12-1"]]
