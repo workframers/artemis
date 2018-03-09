@@ -1,6 +1,8 @@
 (ns artemis.test-runner
   (:require [doo.runner :refer-macros [doo-tests]]
             [artemis.core-test]
+            [artemis.core-mutate-test]
+            [artemis.core-query-test]
             [artemis.stores.normalized-in-memory-store-test]
             [artemis.stores.mapgraph-store-test]
             [clojure.spec.alpha :as s]
@@ -10,5 +12,7 @@
 (s/check-asserts true)
 
 (doo-tests 'artemis.core-test
+           'artemis.core-mutate-test
+           'artemis.core-query-test
            'artemis.stores.normalized-in-memory-store-test
            'artemis.stores.mapgraph-store-test)

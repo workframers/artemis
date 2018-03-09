@@ -103,14 +103,8 @@
 
 (defrecord NormalizedInMemoryStore [unique-indexes entities]
   sp/GQLStore
-  (-query [this _ _ _]))
-    ; (js/graphqlAnywhere resolve-query
-    ;                     (query-string->document qs)
-    ;                     nil
-    ;                     this
-    ;                     qv
-    ;                     nil)
-
+  (-query [this _ _ _])
+  (-write [this _ _ _]))
 
 ;; Public API
 

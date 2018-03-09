@@ -64,6 +64,15 @@
   [x]
   (instance? Client x))
 
+(defn- vars-and-opts [args]
+  (let [variables   (when (map? (first args)) (first args))
+        options     (if variables (next args) args)]
+    {:variables variables
+     :options   options}))
+
+(defn- update-store! [client new-store]
+  (update client :store reset! new-store))
+
 (s/def ::document d/doc?)
 (s/def ::name string?)
 (s/def ::out-chan (s/and #(satisfies? WritePort %) #(satisfies? ReadPort %)))
@@ -77,9 +86,9 @@
                :arity-n (s/cat :client    ::client
                                :document  ::document
                                :variables (s/? map?)
-                               :options   (s/keys* :opt-un [::name
-                                                            ::out-chan
+                               :options   (s/keys* :opt-un [::out-chan
                                                             ::fetch-policy
+                                                            ::return-partial? ;; maybe
                                                             ::context])))
         :ret  ::out-chan)
 
@@ -122,21 +131,19 @@
   ([client document]
    (query client document {}))
   ([client document & args]
-   (let [variables   (when (map? (first args)) (first args))
-         options     (if variables (next args) args)
-         query-name  (:name options)
+   (let [{:keys [variables options]} (vars-and-opts args)
+         {:keys [out-chan fetch-policy context]
+          :or   {out-chan     (async/chan)
+                 context      {}
+                 fetch-policy :local-only}} options
          local-read  #(sp/-query @(:store client)
                                  document
                                  variables
                                  (get options :return-partial? false))
          remote-read #(np/-exec (:network-chain client)
                                 {:document  document
-                                 :variables variables
-                                 :name      query-name}
-                                (get options :context {}))
-         {:keys [out-chan fetch-policy context]
-          :or   {out-chan     (async/chan)
-                 fetch-policy :local-only}} options]
+                                 :variables variables}
+                                context)]
      (case fetch-policy
        :local-only
        (let [local-result (local-read)]
@@ -161,14 +168,17 @@
                                 :network-status (if nil-local-data? :fetching :ready))))
          (if nil-local-data?
            (let [remote-result-chan (remote-read)]
-             (go (let [remote-result (async/<! remote-result-chan)]
-                   (async/put! out-chan
-                               (-> remote-result
-                                   result->message
-                                   (assoc :variables      variables
-                                          :source         :remote
-                                          :in-flight?     false
-                                          :network-status :ready)))
+             (go (let [remote-result (async/<! remote-result-chan)
+                       message       (result->message remote-result)]
+                   (update-store! client (sp/-write @(:store client)
+                                                    message
+                                                    document
+                                                    variables))
+                   (async/put! out-chan (assoc message
+                                               :variables      variables
+                                               :source         :remote
+                                               :in-flight?     false
+                                               :network-status :ready))
                    (async/close! out-chan))))
            (async/close! out-chan)))
 
@@ -182,14 +192,17 @@
                                 :source         :local
                                 :in-flight?     true
                                 :network-status :fetching)))
-         (go (let [remote-result (async/<! remote-result-chan)]
-               (async/put! out-chan
-                           (-> remote-result
-                               result->message
-                               (assoc :variables      variables
-                                      :source         :remote
-                                      :in-flight?     false
-                                      :network-status :ready)))
+         (go (let [remote-result (async/<! remote-result-chan)
+                   message       (result->message remote-result)]
+               (update-store! client (sp/-write @(:store client)
+                                                message
+                                                document
+                                                variables))
+               (async/put! out-chan (assoc message
+                                           :variables      variables
+                                           :source         :remote
+                                           :in-flight?     false
+                                           :network-status :ready))
                (async/close! out-chan))))
 
        :remote-only
@@ -199,18 +212,71 @@
                                :source         :local
                                :in-flight?     true
                                :network-status :fetching})
-         (go (let [remote-result (async/<! remote-result-chan)]
-               (async/put! out-chan
-                           (-> remote-result
-                               result->message
-                               (assoc :variables      variables
-                                      :source         :remote
-                                      :in-flight?     false
-                                      :network-status :ready)))
+         (go (let [remote-result (async/<! remote-result-chan)
+                   message       (result->message remote-result)]
+               (update-store! client (sp/-write @(:store client)
+                                                message
+                                                document
+                                                variables))
+               (async/put! out-chan (assoc message
+                                           :variables      variables
+                                           :source         :remote
+                                           :in-flight?     false
+                                           :network-status :ready))
                (async/close! out-chan))))
 
        (throw (ex-info (str "Invalid :fetch-policy. Must be one of #{:local-only"
                             " :local-first :local-then-remote :remote-only}.")
                        {:reason ::invalid-fetch-policy
                         :value  fetch-policy})))
+     out-chan)))
+
+(s/fdef mutate
+        :args (s/alt
+               :arity-2 (s/cat :client   ::client
+                               :document ::document)
+               :arity-n (s/cat :client    ::client
+                               :document  ::document
+                               :variables (s/? map?)
+                               :options   (s/keys* :opt-un [::out-chan
+                                                            ::optimistic-result
+                                                            ::context])))
+        :ret  ::out-chan)
+
+;; TODO rename mutate!
+(defn mutate
+  ([client document]
+   (mutate client document {}))
+  ([client document & args]
+   (let [{:keys [variables options]} (vars-and-opts args)
+         {:keys [out-chan optimistic-result context]
+          :or   {out-chan (async/chan)
+                 context  {}}} options]
+     (when optimistic-result
+       (update-store! client (sp/-write @(:store client)
+                                        {:data optimistic-result}
+                                        document
+                                        variables)))
+     (async/put! out-chan
+                 {:data           optimistic-result
+                  :variables      variables
+                  :source         :local
+                  :in-flight?     true
+                  :network-status :fetching})
+     (go (let [result  (<! (np/-exec (:network-chain client)
+                                     {:document  document
+                                      :variables variables}
+                                     context))
+               message (result->message result)]
+           (update-store! client (sp/-write @(:store client)
+                                            message
+                                            document
+                                            variables))
+           (async/put! out-chan
+                       (assoc message
+                              :variables      variables
+                              :source         :remote
+                              :in-flight?     false
+                              :network-status :ready))
+           (async/close! out-chan)))
      out-chan)))
