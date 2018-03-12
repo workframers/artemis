@@ -15,7 +15,7 @@
   (-query [this document variables return-partial?]         ;todo: implement return-partial
     (query-from-cache document variables this))
   (-write [this data document variables]
-    (write-to-cache document variables data this)))
+    (write-to-cache document variables (:data data) this)))
 
 (defn store?  ;todo: figure out how to use this function in other namespaces without circular deps issues
   "Returns true if store is a mapgraph store."
@@ -29,7 +29,8 @@
   ([] (create-store {}))
   ([{:keys [id-attrs entities cache-key] :or {id-attrs #{} entities {} :cache-key ::cache}}]
    {:post [(store? %)]}
-   (->MapGraphStore (conj id-attrs cache-key) entities cache-key)))
+   (let [cache-key (or cache-key ::cache)]
+     (->MapGraphStore (conj id-attrs cache-key) entities cache-key))))
 
 (defn clear
   "Returns a store with unique indexes and entities cleared out."

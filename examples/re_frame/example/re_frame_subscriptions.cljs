@@ -28,6 +28,7 @@
   (fn [store [_ doc vars]]
     (when store
       (let [x (sp/-query store doc vars false)]
+        (.log js/console store)
         (.log js/console doc)
         (.log js/console x)
         x))))

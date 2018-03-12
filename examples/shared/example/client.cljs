@@ -6,7 +6,7 @@
             [artemis.network-steps.protocols :as np]))
 
 ;; Create a standard store
-(def s (mgs/create-store {:id-attrs #{:repository/id} :cache-key ::cache}))
+(def s (mgs/create-store {:id-attrs #{:Repository/id}}))
 
 ;; Create a network step that adds oauth token to all requests
 (defn add-token [next-step]
