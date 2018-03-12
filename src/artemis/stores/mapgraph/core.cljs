@@ -15,7 +15,9 @@
   (-query [this document variables return-partial?]         ;todo: implement return-partial
     (query-from-cache document variables this))
   (-write [this data document variables]
-    (write-to-cache document variables (:data data) this)))
+    (if-let [gql-response (:data data)]
+      (write-to-cache document variables gql-response this)
+      this)))
 
 (defn store?  ;todo: figure out how to use this function in other namespaces without circular deps issues
   "Returns true if store is a mapgraph store."
