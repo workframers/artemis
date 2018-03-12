@@ -18,12 +18,12 @@
                :stringField "this is a string"
                :numberField 3
                :nullField   nil}
-    :entities {[::cache :root]
+    :entities {[::cache "root"]
                {:id          "abcd"
                 :stringField "this is a string"
                 :numberField 3
                 :nullField   nil
-                ::cache      :root}}}
+                ::cache      "root"}}}
 
    :args
    {:query    (d/parse-document
@@ -37,12 +37,12 @@
                :stringField "The arg was 1"
                :numberField 3
                :nullField   nil}
-    :entities {[::cache :root]
+    :entities {[::cache "root"]
                {:id                        "abcd"
                 "stringField({\"arg\":1})" "The arg was 1"
                 :numberField               3
                 :nullField                 nil
-                ::cache                    :root}}}
+                ::cache                    "root"}}}
 
    :aliased
    {:query    (d/parse-document
@@ -56,12 +56,12 @@
                :aliasedField "this is a string"
                :numberField  3
                :nullField    nil}
-    :entities {[::cache :root]
+    :entities {[::cache "root"]
                {:id          "abcd"
                 :stringField "this is a string"
                 :numberField 3
                 :nullField   nil
-                ::cache      :root}}}
+                ::cache      "root"}}}
 
    :aliased-with-args
    {:query    (d/parse-document
@@ -77,13 +77,13 @@
                :aliasedField2 "The arg was 2"
                :numberField   3
                :nullField     nil}
-    :entities {[::cache :root]
+    :entities {[::cache "root"]
                {:id                        "abcd"
                 "stringField({\"arg\":1})" "The arg was 1"
                 "stringField({\"arg\":2})" "The arg was 2"
                 :numberField               3
                 :nullField                 nil
-                ::cache                    :root}}}
+                ::cache                    "root"}}}
 
    :with-vars
    {:query      (d/parse-document
@@ -100,12 +100,12 @@
                  :stringField "This worked"
                  :numberField 5
                  :nullField   nil}
-    :entities   {[::cache :root]
+    :entities   {[::cache "root"]
                  {:id                                             "abcd"
                   :nullField                                      nil
                   "numberField({\"intArg\":5,\"floatArg\":3.14})" 5
                   "stringField({\"arg\":\"This is a string\"})"   "This worked"
-                  ::cache                                         :root}}}
+                  ::cache                                         "root"}}}
 
    :default-vars
    {:query      (d/parse-document
@@ -125,12 +125,12 @@
                  :stringField "This worked"
                  :numberField 5
                  :nullField   nil}
-    :entities   {[::cache :root]
+    :entities   {[::cache "root"]
                  {:id                                                   "abcd"
                   :nullField                                            nil
                   "numberField({\"intArg\":5,\"floatArg\":3.14})"       5
                   "stringField({\"arg\":\"This is a default string\"})" "This worked"
-                  ::cache                                               :root}}}
+                  ::cache                                               "root"}}}
 
    :directives
    {:query    (d/parse-document
@@ -144,12 +144,12 @@
                :firstName "James"
                :lastName  "BOND"
                :birthDate "20-05-1940"}
-    :entities {[::cache :root]
+    :entities {[::cache "root"]
                {:id                                                 "abcd"
                 :firstName                                          "James"
                 "lastName@upperCase"                                "BOND"
                 "birthDate@dateFormat({\"format\":\"DD-MM-YYYY\"})" "20-05-1940"
-                ::cache                                             :root}}}
+                ::cache                                             "root"}}}
 
    :nested
    {:query    (d/parse-document
@@ -175,13 +175,13 @@
                              :numberField 3
                              :nullField   nil
                              :__typename  "object"}}
-    :entities {[::cache :root]
+    :entities {[::cache "root"]
                {:id          "abcd"
                 :stringField "this is a string"
                 :numberField 3
                 :nullField   nil
                 :nestedObj   [:object/id "abcde"]
-                ::cache      :root}
+                ::cache      "root"}
                [:object/id "abcde"]
                {:object/id          "abcde"
                 :object/stringField "this is a string too"
@@ -211,13 +211,13 @@
                              :numberField 3
                              :nullField   nil
                              :__typename  "object"}}
-    :entities {[::cache :root]
+    :entities {[::cache "root"]
                {:id          "abcd"
                 :stringField "this is a string"
                 :numberField 3
                 :nullField   nil
                 :nestedObj   [::cache "root.nestedObj"]
-                ::cache      :root}
+                ::cache      "root"}
                [::cache "root.nestedObj"]
                {:object/stringField "this is a string too"
                 :object/numberField 3
@@ -247,13 +247,13 @@
                              :numberField 3
                              :nullField   nil
                              :__typename  "object"}}
-    :entities {[::cache :root]
+    :entities {[::cache "root"]
                {:id                            "abcd"
                 :stringField                   "this is a string"
                 :numberField                   3
                 :nullField                     nil
                 "nestedObj({\"arg\":\"val\"})" [::cache "root.nestedObj({\"arg\":\"val\"})"]
-                ::cache                        :root}
+                ::cache                        "root"}
                [::cache "root.nestedObj({\"arg\":\"val\"})"]
                {:object/stringField "this is a string too"
                 :object/numberField 3
@@ -290,14 +290,14 @@
                               :numberField 3
                               :nullField   nil
                               :__typename  "object"}]}
-    :entities {[::cache :root]
+    :entities {[::cache "root"]
                {:id          "abcd"
                 :stringField "this is a string"
                 :numberField 1
                 :nullField   nil
                 :nestedArray [[:object/id "abcde"]
                               [:object/id "abcdef"]]
-                ::cache      :root}
+                ::cache      "root"}
                [:object/id "abcde"]
                {:object/id          "abcde"
                 :object/stringField "this is a string too"
@@ -336,13 +336,13 @@
                               :nullField   nil
                               :__typename  "object"}
                              nil]}
-    :entities {[::cache :root]
+    :entities {[::cache "root"]
                {:id          "abcd"
                 :stringField "this is a string"
                 :numberField 1
                 :nullField   nil
                 :nestedArray [[:object/id "abcde"] nil]
-                ::cache      :root}
+                ::cache      "root"}
                [:object/id "abcde"]
                {:object/id          "abcde"
                 :object/stringField "this is a string too"
@@ -376,14 +376,14 @@
                               :numberField 3
                               :nullField   nil
                               :__typename  "object"}]}
-    :entities {[::cache :root]
+    :entities {[::cache "root"]
                {:id          "abcd"
                 :stringField "this is a string"
                 :numberField 1
                 :nullField   nil
                 :nestedArray [[::cache "root.nestedArray.0"]
                               [::cache "root.nestedArray.1"]]
-                ::cache      :root}
+                ::cache      "root"}
                [::cache "root.nestedArray.0"]
                {:object/stringField "this is a string too"
                 :object/numberField 2
@@ -420,14 +420,14 @@
                               :numberField 3
                               :nullField   nil
                               :__typename  "object"}]}
-    :entities {[::cache :root]
+    :entities {[::cache "root"]
                {:id          "abcd"
                 :stringField "this is a string"
                 :numberField 1
                 :nullField   nil
                 :nestedArray [nil
                               [::cache "root.nestedArray.1"]]
-                ::cache      :root}
+                ::cache      "root"}
                [::cache "root.nestedArray.1"]
                {:object/stringField "this is a string also"
                 :object/numberField 3
@@ -449,13 +449,13 @@
                :numberField 3
                :nullField   nil
                :simpleArray ["one" "two" "three"]}
-    :entities {[::cache :root]
+    :entities {[::cache "root"]
                {:id          "abcd"
                 :stringField "this is a string"
                 :numberField 3
                 :nullField   nil
                 :simpleArray ["one" "two" "three"]
-                ::cache      :root}}}
+                ::cache      "root"}}}
 
    :simple-array-with-nulls
    {:query    (d/parse-document
@@ -471,13 +471,13 @@
                :numberField 3
                :nullField   nil
                :simpleArray [nil "two" "three"]}
-    :entities {[::cache :root]
+    :entities {[::cache "root"]
                {:id          "abcd"
                 :stringField "this is a string"
                 :numberField 3
                 :nullField   nil
                 :simpleArray [nil "two" "three"]
-                ::cache      :root}}}
+                ::cache      "root"}}}
 
    :obj-in-different-paths
    {:query    (d/parse-document
@@ -502,11 +502,11 @@
                          :numberField 1
                          :__typename  "object"}}
 
-    :entities {[::cache :root]
+    :entities {[::cache "root"]
                {:id      "a"
                 :object1 [:object/id "aa"]
                 :object2 [:object/id "aa"]
-                ::cache  :root}
+                ::cache  "root"}
                [:object/id "aa"]
                {:object/id          "aa"
                 :object/stringField "this is a string"
@@ -552,11 +552,11 @@
                                        :__typename  "nested-object"}
                          :__typename  "object"}]}
 
-    :entities {[::cache :root]
+    :entities {[::cache "root"]
                {:id     "a"
                 :array1 [[:object/id "aa"]]
                 :array2 [[:object/id "ab"]]
-                ::cache :root}
+                ::cache "root"}
                [:object/id "aa"]
                {:object/id          "aa"
                 :object/stringField "this is a string"
@@ -593,13 +593,13 @@
                :numberField 3
                :nullField   nil
                :nestedObj   nil}
-    :entities {[::cache :root]
+    :entities {[::cache "root"]
                {:id          "abcd"
                 :stringField "this is a string"
                 :numberField 3
                 :nullField   nil
                 :nestedObj   nil
-                ::cache      :root}}}})
+                ::cache      "root"}}}})
 
 (defn write-test [k]
   (testing (str "testing normalized cache persistence for query type: " k)

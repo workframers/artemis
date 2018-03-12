@@ -147,4 +147,4 @@
                  :vars-info (:variables first-op)           ; info about the kinds of variables supported by this op
                  :store store}
         pull-pattern (->gql-pull-pattern first-op)]
-    (pull store pull-pattern [(:cache-key store) :root] context)))
+    (pull store pull-pattern [(:cache-key store) "root"] context)))

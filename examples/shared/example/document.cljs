@@ -11,6 +11,7 @@
          name
          login
          repositories(first: 5) {
+           __typename
            nodes {
              __typename
              id
