@@ -42,7 +42,7 @@
   (fn [store [_ doc vars]]
     (when store
       (.log js/console store)
-      (sp/-query store doc vars false))))
+      (:data (sp/-query store doc vars false)))))
 
 ;; Create a signal graph layer for a message
 (rf/reg-sub

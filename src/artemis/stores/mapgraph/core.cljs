@@ -13,7 +13,7 @@
 (defrecord MapGraphStore [id-attrs entities cache-key]
   sp/GQLStore
   (-query [this document variables return-partial?]         ;todo: implement return-partial
-    (query-from-cache document variables this))
+    {:data (not-empty (query-from-cache document variables this))})
   (-write [this data document variables]
     (if-let [gql-response (:data data)]
       (write-to-cache document variables gql-response this)

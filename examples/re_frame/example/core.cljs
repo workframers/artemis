@@ -8,7 +8,7 @@
   (let [{:keys [data]} @(rf/subscribe [:artemis/query
                                        q/get-repo
                                        {:owner owner :name repo-name}
-                                       {:fetch-policy :remote-only}])
+                                       {:fetch-policy :local-first}])
          repository    (:repository data)]
     [:div
      [:header
@@ -24,7 +24,7 @@
   (let [{:keys [data]} @(rf/subscribe [:artemis/query
                                        q/get-repos
                                        {:login login}
-                                       {:fetch-policy :remote-only}])
+                                       {:fetch-policy :local-first}])
         selected-repo  @(rf/subscribe [::sub/selected-repo])
         user           (:user data)
         repositories   (get-in user [:repositories :nodes])]
