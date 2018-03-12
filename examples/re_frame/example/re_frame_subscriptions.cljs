@@ -7,6 +7,20 @@
             [re-frame.core :as rf]
             [cljs.core.async :refer [<!]]))
 
+(rf/reg-event-db
+  :select-repo
+  (fn [db [_ repo]]
+    (assoc-in db [:ui-state :selected-repo] repo)))
+
+(rf/reg-sub
+  ::ui-state
+  :ui-state)
+
+(rf/reg-sub
+  ::selected-repo
+  :<- [::ui-state]
+  :selected-repo)
+
 ;; Put store and messages into the the app-db so we can subscribe to them
 (rf/reg-event-db
   ::message-received
@@ -27,7 +41,7 @@
   :<- [::artemis-store]
   (fn [store [_ doc vars]]
     (when store
-      (.log js/console "sub: " store)
+      (.log js/console store)
       (sp/-query store doc vars false))))
 
 ;; Create a signal graph layer for a message
