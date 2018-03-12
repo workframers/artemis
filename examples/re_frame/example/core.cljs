@@ -13,24 +13,20 @@
                      (str value)]]])
                 result)))
 
-(defn some-view []
-  (let [result (rf/subscribe [:artemis/query q/get-repo {} {:fetch-policy :remote-only}])]
+(defn repo []
+  (let [{:keys [data]} @(rf/subscribe [:artemis/query q/get-repo {} {:fetch-policy :remote-only}])
+         repository    (:repository data)]
     [:div
-     [:style
-      "strong { display: block; margin: 15px 0; }
-      .table {
-        display: grid;
-        align-items: center;
-        grid-template-columns: 75px minmax(400px, 800px);
-        grid-gap: 20px;
-      }"]
-     [:strong "Latest Result"]
-     (when-let [r @result]
-       [result-table r])]))
+     [:header
+      [:h2 (:name repository)]
+      [:p (:description repository)]]
+     ;; Add more stuff here
+     ]
+    ))
 
 (defn on-load []
   (rf/clear-subscription-cache!)
-  (r/render [some-view]
+  (r/render [repo]
             (.getElementById js/document "app")))
 
 (defn ^:export main []

@@ -6,6 +6,7 @@
   (parse-document
    "query {
       repository(owner: \"octocat\", name: \"Hello-World\") {
+        __typename
         id
         name
         description

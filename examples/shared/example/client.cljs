@@ -1,12 +1,12 @@
 (ns example.client
   (:require-macros [example.github-token :refer [github-token]])
   (:require [artemis.core :as a]
-            [artemis.stores.normalized-in-memory-store :as nms]
+            [artemis.stores.mapgraph.core :as mgs]
             [artemis.network-steps.http :as http]
             [artemis.network-steps.protocols :as np]))
 
 ;; Create a standard store
-(def s (nms/create-store))
+(def s (mgs/create-store {:id-attrs #{:repository/id} :cache-key ::cache}))
 
 ;; Create a network step that adds oauth token to all requests
 (defn add-token [next-step]
