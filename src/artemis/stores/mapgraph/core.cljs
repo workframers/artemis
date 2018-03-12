@@ -15,6 +15,7 @@
   (-query [this document variables return-partial?]         ;todo: implement return-partial
     (query-from-cache document variables this))
   (-write [this data document variables]
+    (.log js/console data)
     (write-to-cache document variables (:data data) this)))
 
 (defn store?  ;todo: figure out how to use this function in other namespaces without circular deps issues

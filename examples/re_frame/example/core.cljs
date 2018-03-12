@@ -4,15 +4,6 @@
             [reagent.core :as r]
             [re-frame.core :as rf]))
 
-(defn result-table [result]
-  (into [:div.table]
-        (mapcat (fn [[title value]]
-                  [[:div title]
-                   [:div
-                    [:pre {:style {:overflow :scroll}}
-                     (str value)]]])
-                result)))
-
 (defn repo []
   (let [{:keys [data]} @(rf/subscribe [:artemis/query q/get-repo {} {:fetch-policy :remote-only}])
          repository    (:repository data)]
@@ -24,9 +15,25 @@
      ]
     ))
 
+(defn user-repos [login]
+  (let [{:keys [data]} @(rf/subscribe [:artemis/query
+                                       q/get-repos
+                                       {:login login}
+                                       {:fetch-policy :remote-only}])
+        user           (:user data)
+        repositories   (get-in user [:repositories :nodes])]
+    [:div
+     [:h1
+      "Repos belonging to " (:name user) " (" login ")"]
+     (.log js/console "view: " data)
+     [:ul
+      (for [repo repositories]
+        [:li {:key (:id repo)}
+         (:name repo)])]]))
+
 (defn on-load []
   (rf/clear-subscription-cache!)
-  (r/render [repo]
+  (r/render [user-repos "colindresj"]
             (.getElementById js/document "app")))
 
 (defn ^:export main []
