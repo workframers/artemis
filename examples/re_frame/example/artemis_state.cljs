@@ -1,4 +1,4 @@
-(ns example.re-frame-subscriptions
+(ns example.artemis-state
   (:require-macros [cljs.core.async.macros :refer [go-loop]])
   (:require [example.client :refer [client]]
             [artemis.stores.protocols :as sp]
@@ -7,21 +7,8 @@
             [re-frame.core :as rf]
             [cljs.core.async :refer [<!]]))
 
-(rf/reg-event-db
-  :select-repo
-  (fn [db [_ repo]]
-    (assoc-in db [:ui-state :selected-repo] repo)))
-
-(rf/reg-sub
-  ::ui-state
-  :ui-state)
-
-(rf/reg-sub
-  ::selected-repo
-  :<- [::ui-state]
-  :selected-repo)
-
 ;; Put store and messages into the the app-db so we can subscribe to them
+;; and have access from within other subscriptions
 (rf/reg-event-db
   ::message-received
   (fn [db [_ query result store]]
@@ -37,12 +24,11 @@
 
 ;; Create a signal graph layer for a -query against the store
 (rf/reg-sub
-  ::artemis-query
+  ::artemis-query-result
   :<- [::artemis-store]
   (fn [store [_ doc vars]]
     (when store
-      (.log js/console store)
-      (:data (sp/-query store doc vars false)))))
+      (sp/-query store doc vars false))))
 
 ;; Create a signal graph layer for a message
 (rf/reg-sub
@@ -50,18 +36,20 @@
   (fn [app-db [_ query]]
     (get-in app-db [:artemis/messages query])))
 
-;; The main subscription interface layered atop the above signal layers
+;; The main subscription interface layered atop the above signal graph
 (rf/reg-sub-raw
-  :artemis/query
+  ::query
   (fn [_ [_ doc vars opts :as query]]
     (let [kw-args (mapcat identity opts)
           q-chan  (apply a/query client doc vars kw-args)]
+      ;; Dispatch into the app-db on message
       (go-loop []
         (when-let [result (<! q-chan)]
           (rf/dispatch [::message-received query result (a/store client)])
           (recur)))
+      ;; React to changes in either the store or a new message
       (ratom/make-reaction
         (fn []
-          (let [result  @(rf/subscribe [::artemis-query doc vars])
+          (let [result  @(rf/subscribe [::artemis-query-result doc vars])
                 message @(rf/subscribe [::artemis-message query])]
-            (assoc message :data result)))))))
+            (merge message result)))))))

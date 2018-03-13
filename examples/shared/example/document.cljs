@@ -10,7 +10,8 @@
          id
          name
          login
-         repositories(first: 5) {
+         avatarUrl
+         repositories(first: 6, affiliations: OWNER) {
            nodes {
              __typename
              id
@@ -30,8 +31,16 @@
          name
          description
          url
+         stargazers(first: 30) {
+           nodes {
+            __typename
+            id
+            name
+           }
+         }
          languages(first: 10) {
            nodes {
+             __typename
              color
              name
            }
