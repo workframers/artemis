@@ -606,7 +606,7 @@
     (let [{:keys [query input-vars result entities]} (get test-queries k)
           initial-store (create-store {:id-attrs #{:object/id :nested-object/id}
                                        :cache-key ::cache})
-          new-store (sp/-write initial-store result query input-vars)]
+          new-store (sp/-write initial-store {:data result} query input-vars)]
       (is (= entities (:entities new-store))))))
 
 (deftest test-cache-persistence
@@ -620,7 +620,7 @@
                                :entities entities
                                :cache-key ::cache})
           response (sp/-query store query input-vars false)]
-      (is (= result response)))))
+      (is (= {:data result} response)))))
 
 (deftest test-cache-querying
   (doseq [test-query (keys test-queries)]
