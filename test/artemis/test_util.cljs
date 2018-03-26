@@ -11,7 +11,7 @@
 
 (defrecord Store [query-fn write-fn]
   GQLStore
-  (-query [this doc variables _]
+  (-read [this doc variables _]
     (if (fn? query-fn)
       (query-fn this doc variables _)
       {:data nil}))

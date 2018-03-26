@@ -1,7 +1,7 @@
 (ns artemis.stores.mapgraph.core
   (:require [artemis.stores.protocols :as sp]
             [artemis.stores.mapgraph.write :refer [write-to-cache]]
-            [artemis.stores.mapgraph.query :refer [query-from-cache]]))
+            [artemis.stores.mapgraph.read :refer [read-from-cache]]))
 
 ;; Protocol Implementation
 
@@ -12,8 +12,8 @@
 ;; and it will not be retrievable via a normal look up
 (defrecord MapGraphStore [id-attrs entities cache-key]
   sp/GQLStore
-  (-query [this document variables return-partial?]         ;todo: implement return-partial
-    {:data (not-empty (query-from-cache document variables this))})
+  (-read [this document variables return-partial?]         ;todo: implement return-partial
+    {:data (not-empty (read-from-cache document variables this))})
   (-write [this data document variables]
     (if-let [gql-response (:data data)]
       (write-to-cache document variables gql-response this)

@@ -3,7 +3,7 @@
 
 (defprotocol GQLStore
   "Defines a protocol that can be applied on any type of GraphQL data store."
-  (-query [_ document variables return-partial?]
+  (-read [_ document variables return-partial?]
     "Returns the result of a GraphQL query against the store. The store should
     return a map of `{:result <any>, :partial? <boolean>}`.
 

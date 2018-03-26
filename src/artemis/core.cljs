@@ -130,10 +130,10 @@
           :or   {out-chan     (async/chan)
                  context      {}
                  fetch-policy :local-only}} options
-         local-read  #(sp/-query @(:store client)
-                                 document
-                                 variables
-                                 (get options :return-partial? false))
+         local-read  #(sp/-read @(:store client)
+                                document
+                                variables
+                                (get options :return-partial? false))
          remote-read #(np/-exec (:network-chain client)
                                 {:document  document
                                  :variables variables}

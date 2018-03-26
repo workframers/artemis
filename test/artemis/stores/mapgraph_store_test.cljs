@@ -612,15 +612,15 @@
   (doseq [test-query (keys test-queries)]
     (write-test test-query)))
 
-(defn query-test [k]
+(defn read-test [k]
   (testing (str "testing normalized cache querying for query type: " k)
     (let [{:keys [query input-vars result entities]} (get test-queries k)
           store (create-store :id-attrs #{:object/id :nested-object/id}
                               :entities entities
                               :cache-key ::cache)
-          response (sp/-query store query input-vars false)]
+          response (sp/-read store query input-vars false)]
       (is (= {:data result} response)))))
 
-(deftest test-cache-querying
+(deftest test-cache-reading
   (doseq [test-query (keys test-queries)]
-    (query-test test-query)))
+    (read-test test-query)))
