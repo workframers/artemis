@@ -9,7 +9,7 @@
                    :optimizations :none
                    :main artemis.core
                    :preloads [devtools.preload]}}
-  :example {:source-paths ["examples/shared"]
+  :example {:source-paths ["examples/common"]
             :figwheel {:on-jsload example.core/on-load}
             :compiler {:main example.core}}
   :re-frame {:source-paths ["examples/re_frame"]}}}

@@ -18,7 +18,7 @@
   :profiles
   {:dev {:dependencies [[figwheel-sidecar "0.5.0"]
                         [binaryage/devtools "0.9.9"]]}
-   :examples {:source-paths ["examples/shared"]
+   :examples {:source-paths ["examples/common"]
               :dependencies [[re-frame "0.10.5"]]}
    :test {:dependencies [[org.mozilla/rhino "1.7.7"]
                          [org.clojure/test.check "0.9.0"]
