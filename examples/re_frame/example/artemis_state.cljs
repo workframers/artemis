@@ -1,7 +1,6 @@
 (ns example.artemis-state
   (:require-macros [cljs.core.async.macros :refer [go-loop]])
   (:require [example.client :refer [client]]
-            [artemis.stores.protocols :as sp]
             [artemis.core :as a]
             [reagent.ratom :as ratom]
             [re-frame.core :as rf]
@@ -22,13 +21,13 @@
   (fn [app-db _]
     (get-in app-db [:artemis/store])))
 
-;; Create a signal graph layer for a -query against the store
+;; Create a signal graph layer for a read against the store
 (rf/reg-sub
-  ::artemis-query-result
+  ::artemis-read-result
   :<- [::artemis-store]
   (fn [store [_ doc vars]]
     (when store
-      (sp/-query store doc vars false))))
+      (a/read store doc vars false))))
 
 ;; Create a signal graph layer for a message
 (rf/reg-sub
@@ -50,6 +49,6 @@
       ;; React to changes in either the store or a new message
       (ratom/make-reaction
         (fn []
-          (let [result  @(rf/subscribe [::artemis-query-result doc vars])
+          (let [result  @(rf/subscribe [::artemis-read-result doc vars])
                 message @(rf/subscribe [::artemis-message query])]
             (merge message result)))))))

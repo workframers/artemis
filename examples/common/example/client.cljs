@@ -19,7 +19,7 @@
       (let [up-context (assoc context
                               :with-credentials? false
                               :oauth-token       (github-token))] ;; Make sure your token exists inside of resources/.github-token
-        (np/-exec next-step operation up-context)))))
+        (a/exec next-step operation up-context)))))
 
 ;; Create a network chain using the base http step and the above add-token step
 (def n (-> (http/create-network-step "https://api.github.com/graphql")

@@ -13,7 +13,7 @@
       through the execution chain.
 
     The final step in the chain should return a core.async channel. Prior-steps
-    should return the result of calling exec on an enclosed step.
+    should return the result of calling artemis.core/exec on an enclosed step.
 
     For example, if you wanted to log the operation before making the request,
     you can add a step to the execution chain by doing the following:
@@ -30,6 +30,6 @@
         GQLNetworkStep
         (-exec [_ operation context]
           (logger/log operation)
-          (-exec next-step operation context))))
+          (artemis.core/exec next-step operation context))))
 
     (def network-chain (-> http logger))"))
