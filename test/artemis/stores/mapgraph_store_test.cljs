@@ -2,7 +2,6 @@
   (:require [cljs.test :refer-macros [deftest is testing async]]
             [artemis.document :as d]
             [artemis.stores.protocols :as sp]
-            ;[artemis.stores.mapgraph-store :refer [create-store]]
             [artemis.stores.mapgraph.core :refer [create-store]]))
 
 (def test-queries
@@ -604,8 +603,8 @@
 (defn write-test [k]
   (testing (str "testing normalized cache persistence for query type: " k)
     (let [{:keys [query input-vars result entities]} (get test-queries k)
-          initial-store (create-store {:id-attrs #{:object/id :nested-object/id}
-                                       :cache-key ::cache})
+          initial-store (create-store :id-attrs #{:object/id :nested-object/id}
+                                      :cache-key ::cache)
           new-store (sp/-write initial-store {:data result} query input-vars)]
       (is (= entities (:entities new-store))))))
 
@@ -616,9 +615,9 @@
 (defn query-test [k]
   (testing (str "testing normalized cache querying for query type: " k)
     (let [{:keys [query input-vars result entities]} (get test-queries k)
-          store (create-store {:id-attrs #{:object/id :nested-object/id}
-                               :entities entities
-                               :cache-key ::cache})
+          store (create-store :id-attrs #{:object/id :nested-object/id}
+                              :entities entities
+                              :cache-key ::cache)
           response (sp/-query store query input-vars false)]
       (is (= {:data result} response)))))
 

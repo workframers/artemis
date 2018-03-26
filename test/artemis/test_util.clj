@@ -9,5 +9,5 @@
            store# (stub-store ~store-query-fn ~store-write-fn)
            nchain# (stub-net-chain mock-chan#)
            ~'put-result! #(cljs.core.async/put! mock-chan# %)
-           ~'client (artemis.core/create-client store# nchain#)]
+           ~'client (artemis.core/create-client :store store# :network-chain nchain#)]
        ~@body)))

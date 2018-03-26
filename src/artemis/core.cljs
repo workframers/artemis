@@ -17,21 +17,15 @@
 (s/def ::client #(instance? Client %))
 
 (s/fdef create-client
-        :args (s/alt
-               :arity-0 (s/cat)
-               :arity-1 (s/cat :store ::store)
-               :arity-2 (s/cat :store         ::store
-                               :network-chain ::network-chain))
+        :args (s/cat :options (s/keys* :opt-un [::store ::network-chain]))
         :ret  ::client)
 
 (defn create-client
   "Returns a new client specified by store, network-chain, and options."
-  ([]
-   (create-client (mgs/create-store)))
-  ([store]
-   (create-client store (http/create-network-step)))
-  ([store network-chain]
-   (Client. (atom store) network-chain)))
+  [& {:keys [store network-chain]
+      :or   {store         (mgs/create-store)
+             network-chain (http/create-network-step)}}]
+  (Client. (atom store) network-chain))
 
 (s/fdef store
         :args (s/cat :client ::client)
