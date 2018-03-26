@@ -12,7 +12,7 @@
     (async done
       (with-client
        {:store-query-fn (constantly {:data "Luke Skywalker"})}
-       (go (let [local-chan (core/query client tu/query-doc variables :fetch-policy :local-only)
+       (go (let [local-chan (core/query! client tu/query-doc variables :fetch-policy :local-only)
                  result     (<! local-chan)
                  closed?    (nil? (<! local-chan))]
              (is (= (:data result) "Luke Skywalker"))
@@ -27,7 +27,7 @@
     (async done
       (with-client
        {:store-query-fn (constantly {:data nil :errors '({:message "Couldn't find hero."})})}
-       (go (let [local-chan (core/query client tu/query-doc variables :fetch-policy :local-only)
+       (go (let [local-chan (core/query! client tu/query-doc variables :fetch-policy :local-only)
                  result     (<! local-chan)
                  closed?    (nil? (<! local-chan))]
              (is (nil? (:data result)))
@@ -43,7 +43,7 @@
     (async done
       (with-client
        {:store-query-fn (constantly {:data "Luke Skywalker"})}
-       (go (let [local-chan (core/query client tu/query-doc variables :fetch-policy :local-first)
+       (go (let [local-chan (core/query! client tu/query-doc variables :fetch-policy :local-first)
                  result     (<! local-chan)
                  closed?    (nil? (<! local-chan))]
              (is (= (:data result) "Luke Skywalker"))
@@ -64,7 +64,7 @@
           :store-write-fn (fn [this {:keys [data]} _ {:keys [episode]}]
                             (reset! cache {episode data})
                             this)}
-         (let [result-chan (core/query client tu/query-doc variables :fetch-policy :local-first)]
+         (let [result-chan (core/query! client tu/query-doc variables :fetch-policy :local-first)]
            (go (let [local-result (<! result-chan)]
                  (is (nil? (:data local-result)))
                  (is (= (:variables local-result) variables))
@@ -94,7 +94,7 @@
           :store-write-fn (fn [this {:keys [data]} _ {:keys [episode]}]
                             (reset! cache {episode data})
                             this)}
-         (let [result-chan (core/query client tu/query-doc variables :fetch-policy :local-then-remote)]
+         (let [result-chan (core/query! client tu/query-doc variables :fetch-policy :local-then-remote)]
            (go (let [local-result (<! result-chan)]
                  (is (= (:data local-result) "R2D2"))
                  (is (= (:variables local-result) variables))
@@ -124,7 +124,7 @@
           :store-write-fn (fn [this {:keys [data]} _ {:keys [episode]}]
                             (reset! cache {episode data})
                             this)}
-         (let [result-chan (core/query client tu/query-doc variables :fetch-policy :local-then-remote)]
+         (let [result-chan (core/query! client tu/query-doc variables :fetch-policy :local-then-remote)]
            (go (let [local-result (<! result-chan)]
                  (is (nil? (:data local-result)))
                  (is (= (:variables local-result) variables))
@@ -153,7 +153,7 @@
         :store-write-fn (fn [this {:keys [data]} _ {:keys [episode]}]
                           (reset! cache {episode data})
                           this)}
-       (let [result-chan (core/query client tu/query-doc variables :fetch-policy :remote-only)]
+       (let [result-chan (core/query! client tu/query-doc variables :fetch-policy :remote-only)]
          (go (let [local-result  (<! result-chan)]
                (is (nil? (:data local-result)))
                (is (= (:variables local-result) variables))
@@ -177,4 +177,4 @@
 (deftest query-invalid
   (with-client
    (is (thrown? ExceptionInfo
-                (core/query client tu/query-doc :fetch-policy :something-else)))))
+                (core/query! client tu/query-doc :fetch-policy :something-else)))))

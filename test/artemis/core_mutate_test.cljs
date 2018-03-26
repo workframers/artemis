@@ -16,7 +16,7 @@
           store-write (fn [this _ _ _] (swap! counter inc) this)]
       (with-client
        {:store-write-fn store-write}
-       (let [result-chan (core/mutate client tu/mutation-doc variables)]
+       (let [result-chan (core/mutate! client tu/mutation-doc variables)]
          (go (let [local-result (<! result-chan)]
                (is (nil? (:data local-result)))
                (is (= (:variables local-result) variables))
@@ -43,7 +43,7 @@
           store-write (fn [this _ _ _] (swap! counter inc) this)]
       (with-client
        {:store-write-fn store-write}
-       (let [result-chan (core/mutate client tu/mutation-doc variables
+       (let [result-chan (core/mutate! client tu/mutation-doc variables
                                       :optimistic-result
                                       {:createReview
                                        {:stars 4

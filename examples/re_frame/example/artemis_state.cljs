@@ -40,7 +40,7 @@
   ::query
   (fn [_ [_ doc vars opts :as query]]
     (let [kw-args (mapcat identity opts)
-          q-chan  (apply a/query client doc vars kw-args)]
+          q-chan  (apply a/query! client doc vars kw-args)]
       ;; Dispatch into the app-db on message
       (go-loop []
         (when-let [result (<! q-chan)]

@@ -111,7 +111,7 @@
 (s/def ::out-chan ::chan)
 (s/def ::fetch-policy #{:local-only :local-first :local-then-remote :remote-only})
 
-(s/fdef query
+(s/fdef query!
         :args (s/alt
                :arity-2 (s/cat :client   ::client
                                :document ::document)
@@ -124,8 +124,7 @@
                                                             ::context])))
         :ret  ::out-chan)
 
-;; TODO - rename query!
-(defn query
+(defn query!
   "Given a client, document, and optional arg and opts, returns a channel that
   will receive the response(s) for a query. Dependending on the :fetch-policy,
   the channel will receive one or more messages.
@@ -161,7 +160,7 @@
   consistency with the server, but at the cost of an instant response.
   "
   ([client document]
-   (query client document {}))
+   (query! client document {}))
   ([client document & args]
    (let [{:keys [variables options]} (vars-and-opts args)
          {:keys [out-chan fetch-policy context]
@@ -256,7 +255,7 @@
                         :value  fetch-policy})))
      out-chan)))
 
-(s/fdef mutate
+(s/fdef mutate!
         :args (s/alt
                :arity-2 (s/cat :client   ::client
                                :document ::document)
@@ -268,10 +267,9 @@
                                                             ::context])))
         :ret  ::out-chan)
 
-;; TODO rename mutate!
-(defn mutate
+(defn mutate!
   ([client document]
-   (mutate client document {}))
+   (mutate! client document {}))
   ([client document & args]
    (let [{:keys [variables options]} (vars-and-opts args)
          {:keys [out-chan optimistic-result context]
