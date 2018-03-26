@@ -11,7 +11,7 @@
 (deftest get-store-and-network-chain
   (let [s      (tu/stub-store {})
         n      (tu/stub-net-chain (chan))
-        client (core/create-client s n)]
+        client (core/create-client :store s :network-chain n)]
     (is (= s (core/store client)))
     (is (= n (core/network-chain client)))))
 

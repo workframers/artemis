@@ -1,8 +1,7 @@
-(ns artemis.stores.mapgraph.query
+(ns artemis.stores.mapgraph.read
   (:require [clojure.set :refer [rename-keys]]
             [artemis.stores.mapgraph.common :refer [like get-ref map-keys]]
             [artemis.stores.mapgraph.selections :refer [field-key aliased?]]))
-
 
 (defn- entity?
   "Returns true if map is an entity according to the db schema. An
@@ -140,11 +139,11 @@
       {}
       pattern)))
 
-(defn query-from-cache
+(defn read-from-cache
   [document input-vars store]
   (let [first-op (-> document :ast :operations first)
         context {:input-vars input-vars                     ; variables given to this op
                  :vars-info (:variables first-op)           ; info about the kinds of variables supported by this op
                  :store store}
         pull-pattern (->gql-pull-pattern first-op)]
-    (pull store pull-pattern [(:cache-key store) :root] context)))
+    (pull store pull-pattern [(:cache-key store) "root"] context)))

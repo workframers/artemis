@@ -1,7 +1,7 @@
 (ns artemis.stores.mapgraph.core
   (:require [artemis.stores.protocols :as sp]
             [artemis.stores.mapgraph.write :refer [write-to-cache]]
-            [artemis.stores.mapgraph.query :refer [query-from-cache]]))
+            [artemis.stores.mapgraph.read :refer [read-from-cache]]))
 
 ;; Protocol Implementation
 
@@ -12,10 +12,12 @@
 ;; and it will not be retrievable via a normal look up
 (defrecord MapGraphStore [id-attrs entities cache-key]
   sp/GQLStore
-  (-query [this document variables return-partial?]         ;todo: implement return-partial
-    (query-from-cache document variables this))
+  (-read [this document variables return-partial?]         ;todo: implement return-partial
+    {:data (not-empty (read-from-cache document variables this))})
   (-write [this data document variables]
-    (write-to-cache document variables data this)))
+    (if-let [gql-response (:data data)]
+      (write-to-cache document variables gql-response this)
+      this)))
 
 (defn store?  ;todo: figure out how to use this function in other namespaces without circular deps issues
   "Returns true if store is a mapgraph store."
@@ -26,10 +28,10 @@
        (map? (:entities store))))
 
 (defn create-store
-  ([] (create-store {}))
-  ([{:keys [id-attrs entities cache-key] :or {id-attrs #{} entities {} :cache-key ::cache}}]
-   {:post [(store? %)]}
-   (->MapGraphStore (conj id-attrs cache-key) entities cache-key)))
+  [& {:keys [id-attrs entities cache-key] :or {id-attrs #{} entities {} :cache-key ::cache}}]
+  {:post [(store? %)]}
+  (let [cache-key (or cache-key ::cache)]
+    (->MapGraphStore (conj id-attrs cache-key) entities cache-key)))
 
 (defn clear
   "Returns a store with unique indexes and entities cleared out."

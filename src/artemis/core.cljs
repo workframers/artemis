@@ -1,6 +1,7 @@
 (ns artemis.core
+  (:refer-clojure :exclude [read])
   (:require-macros [cljs.core.async.macros :refer [go]])
-  (:require [artemis.stores.mapgraph.core :as nms]
+  (:require [artemis.stores.mapgraph.core :as mgs]
             [artemis.stores.protocols :as sp]
             [artemis.network-steps.http :as http]
             [artemis.network-steps.protocols :as np]
@@ -17,26 +18,19 @@
 (s/def ::client #(instance? Client %))
 
 (s/fdef create-client
-        :args (s/alt
-               :arity-0 (s/cat)
-               :arity-1 (s/cat :store ::store)
-               :arity-2 (s/cat :store         ::store
-                               :network-chain ::network-chain))
+        :args (s/cat :options (s/keys* :opt-un [::store ::network-chain]))
         :ret  ::client)
 
 (defn create-client
   "Returns a new client specified by store, network-chain, and options."
-  ([]
-   (create-client (nms/create-store)))
-  ([store]
-   (create-client store (http/create-network-step)))
-  ([store network-chain]
-   (Client. (atom store) network-chain)))
+  [& {:keys [store network-chain]
+      :or   {store         (mgs/create-store)
+             network-chain (http/create-network-step)}}]
+  (Client. (atom store) network-chain))
 
 (s/fdef store
         :args (s/cat :client ::client)
-        :ret  (s/or :nil   nil?
-                    :store ::store))
+        :ret  (s/nilable ::store))
 
 (defn store
   "Retrieves the current :store value for client. Returns nil if no store
@@ -46,8 +40,7 @@
 
 (s/fdef network-chain
         :args (s/cat :client ::client)
-        :ret  (s/or :nil           nil?
-                    :network-chain ::network-chain))
+        :ret  (s/nilable ::network-chain))
 
 (defn network-chain
   "Retrieves the current :network-chain value for client. Returns nil if no
@@ -64,6 +57,48 @@
   [x]
   (instance? Client x))
 
+(s/def ::document d/doc?)
+(s/def ::variables (s/nilable map?))
+(s/def ::name string?)
+(s/def ::operation (s/keys :req-un [::document] :opt-un [::variables ::name]))
+(s/def ::context map?)
+(s/def ::chan (s/and #(satisfies? WritePort %) #(satisfies? ReadPort %)))
+
+(s/fdef exec
+        :args (s/cat :network-chain ::network-chain
+                     :operation     ::operation
+                     :context       ::context)
+        :ret  ::chan)
+
+(defn exec
+  "Calls -exec on a given network chain."
+  [network-chain operation context]
+  (np/-exec network-chain operation context))
+
+(s/def ::data any?)
+(s/def ::return-partial? boolean?)
+(s/def ::result (s/keys :req-un [::data] :opt-un [::return-partial?]))
+
+(s/fdef read
+        :args (s/cat :store           ::store
+                     :document        ::document
+                     :variables       ::variables
+                     :return-partial? ::return-partial?)
+        :ret  (s/nilable ::result))
+
+(defn read [store document variables return-partial?]
+  (sp/-read store document variables return-partial?))
+
+(s/fdef write
+        :args (s/cat :store           ::store
+                     :data            ::data ;; Figure out the right names for all of these things
+                     :document        ::document
+                     :variables       ::variables)
+        :ret  ::store)
+
+(defn write [store data document variables]
+  (sp/-write store data document variables))
+
 (defn- vars-and-opts [args]
   (let [variables   (when (map? (first args)) (first args))
         options     (if variables (next args) args)]
@@ -73,13 +108,10 @@
 (defn- update-store! [client new-store]
   (update client :store reset! new-store))
 
-(s/def ::document d/doc?)
-(s/def ::name string?)
-(s/def ::out-chan (s/and #(satisfies? WritePort %) #(satisfies? ReadPort %)))
+(s/def ::out-chan ::chan)
 (s/def ::fetch-policy #{:local-only :local-first :local-then-remote :remote-only})
-(s/def ::context map?)
 
-(s/fdef query
+(s/fdef query!
         :args (s/alt
                :arity-2 (s/cat :client   ::client
                                :document ::document)
@@ -92,8 +124,7 @@
                                                             ::context])))
         :ret  ::out-chan)
 
-;; TODO - rename query!
-(defn query
+(defn query!
   "Given a client, document, and optional arg and opts, returns a channel that
   will receive the response(s) for a query. Dependending on the :fetch-policy,
   the channel will receive one or more messages.
@@ -129,21 +160,21 @@
   consistency with the server, but at the cost of an instant response.
   "
   ([client document]
-   (query client document {}))
+   (query! client document {}))
   ([client document & args]
    (let [{:keys [variables options]} (vars-and-opts args)
          {:keys [out-chan fetch-policy context]
           :or   {out-chan     (async/chan)
                  context      {}
                  fetch-policy :local-only}} options
-         local-read  #(sp/-query @(:store client)
-                                 document
-                                 variables
-                                 (get options :return-partial? false))
-         remote-read #(np/-exec (:network-chain client)
-                                {:document  document
-                                 :variables variables}
-                                context)]
+         local-read  #(read @(:store client)
+                            document
+                            variables
+                            (get options :return-partial? false))
+         remote-read #(exec (:network-chain client)
+                            {:document  document
+                             :variables variables}
+                            context)]
      (case fetch-policy
        :local-only
        (let [local-result (local-read)]
@@ -151,7 +182,6 @@
                      (-> local-result
                          result->message
                          (assoc :variables      variables
-                                :source         :local
                                 :in-flight?     false
                                 :network-status :ready)))
          (async/close! out-chan))
@@ -163,20 +193,18 @@
                      (-> local-result
                          result->message
                          (assoc :variables      variables
-                                :source         :local
                                 :in-flight?     nil-local-data?
                                 :network-status (if nil-local-data? :fetching :ready))))
          (if nil-local-data?
            (let [remote-result-chan (remote-read)]
              (go (let [remote-result (async/<! remote-result-chan)
                        message       (result->message remote-result)]
-                   (update-store! client (sp/-write @(:store client)
-                                                    message
-                                                    document
-                                                    variables))
+                   (update-store! client (write @(:store client)
+                                                message
+                                                document
+                                                variables))
                    (async/put! out-chan (assoc message
                                                :variables      variables
-                                               :source         :remote
                                                :in-flight?     false
                                                :network-status :ready))
                    (async/close! out-chan))))
@@ -189,18 +217,16 @@
                      (-> local-result
                          result->message
                          (assoc :variables      variables
-                                :source         :local
                                 :in-flight?     true
                                 :network-status :fetching)))
          (go (let [remote-result (async/<! remote-result-chan)
                    message       (result->message remote-result)]
-               (update-store! client (sp/-write @(:store client)
-                                                message
-                                                document
-                                                variables))
+               (update-store! client (write @(:store client)
+                                            message
+                                            document
+                                            variables))
                (async/put! out-chan (assoc message
                                            :variables      variables
-                                           :source         :remote
                                            :in-flight?     false
                                            :network-status :ready))
                (async/close! out-chan))))
@@ -209,18 +235,16 @@
        (let [remote-result-chan (remote-read)]
          (async/put! out-chan {:data           nil
                                :variables      variables
-                               :source         :local
                                :in-flight?     true
                                :network-status :fetching})
          (go (let [remote-result (async/<! remote-result-chan)
                    message       (result->message remote-result)]
-               (update-store! client (sp/-write @(:store client)
-                                                message
-                                                document
-                                                variables))
+               (update-store! client (write @(:store client)
+                                            message
+                                            document
+                                            variables))
                (async/put! out-chan (assoc message
                                            :variables      variables
-                                           :source         :remote
                                            :in-flight?     false
                                            :network-status :ready))
                (async/close! out-chan))))
@@ -231,7 +255,7 @@
                         :value  fetch-policy})))
      out-chan)))
 
-(s/fdef mutate
+(s/fdef mutate!
         :args (s/alt
                :arity-2 (s/cat :client   ::client
                                :document ::document)
@@ -243,39 +267,36 @@
                                                             ::context])))
         :ret  ::out-chan)
 
-;; TODO rename mutate!
-(defn mutate
+(defn mutate!
   ([client document]
-   (mutate client document {}))
+   (mutate! client document {}))
   ([client document & args]
    (let [{:keys [variables options]} (vars-and-opts args)
          {:keys [out-chan optimistic-result context]
           :or   {out-chan (async/chan)
                  context  {}}} options]
      (when optimistic-result
-       (update-store! client (sp/-write @(:store client)
-                                        {:data optimistic-result}
-                                        document
-                                        variables)))
+       (update-store! client (write @(:store client)
+                                    {:data optimistic-result}
+                                    document
+                                    variables)))
      (async/put! out-chan
                  {:data           optimistic-result
                   :variables      variables
-                  :source         :local
                   :in-flight?     true
                   :network-status :fetching})
-     (go (let [result  (<! (np/-exec (:network-chain client)
-                                     {:document  document
-                                      :variables variables}
-                                     context))
+     (go (let [result  (<! (exec (:network-chain client)
+                                 {:document  document
+                                  :variables variables}
+                                 context))
                message (result->message result)]
-           (update-store! client (sp/-write @(:store client)
-                                            message
-                                            document
-                                            variables))
+           (update-store! client (write @(:store client)
+                                        message
+                                        document
+                                        variables))
            (async/put! out-chan
                        (assoc message
                               :variables      variables
-                              :source         :remote
                               :in-flight?     false
                               :network-status :ready))
            (async/close! out-chan)))

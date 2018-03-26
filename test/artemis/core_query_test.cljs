@@ -12,12 +12,11 @@
     (async done
       (with-client
        {:store-query-fn (constantly {:data "Luke Skywalker"})}
-       (go (let [local-chan (core/query client tu/query-doc variables :fetch-policy :local-only)
+       (go (let [local-chan (core/query! client tu/query-doc variables :fetch-policy :local-only)
                  result     (<! local-chan)
                  closed?    (nil? (<! local-chan))]
              (is (= (:data result) "Luke Skywalker"))
              (is (= (:variables result) variables))
-             (is (= (:source result) :local))
              (is (= (:network-status result) :ready))
              (is (false? (:in-flight? result)))
              (is closed?)
@@ -28,13 +27,12 @@
     (async done
       (with-client
        {:store-query-fn (constantly {:data nil :errors '({:message "Couldn't find hero."})})}
-       (go (let [local-chan (core/query client tu/query-doc variables :fetch-policy :local-only)
+       (go (let [local-chan (core/query! client tu/query-doc variables :fetch-policy :local-only)
                  result     (<! local-chan)
                  closed?    (nil? (<! local-chan))]
              (is (nil? (:data result)))
              (is (= 1 (count (:errors result))))
              (is (= (:variables result) variables))
-             (is (= (:source result) :local))
              (is (= (:network-status result) :ready))
              (is (false? (:in-flight? result)))
              (is closed?)
@@ -45,13 +43,12 @@
     (async done
       (with-client
        {:store-query-fn (constantly {:data "Luke Skywalker"})}
-       (go (let [local-chan (core/query client tu/query-doc variables :fetch-policy :local-first)
+       (go (let [local-chan (core/query! client tu/query-doc variables :fetch-policy :local-first)
                  result     (<! local-chan)
                  closed?    (nil? (<! local-chan))]
              (is (= (:data result) "Luke Skywalker"))
              (is (nil? (:errors result)))
              (is (= (:variables result) variables))
-             (is (= (:source result) :local))
              (is (= (:network-status result) :ready))
              (is (false? (:in-flight? result)))
              (is closed?)
@@ -67,11 +64,10 @@
           :store-write-fn (fn [this {:keys [data]} _ {:keys [episode]}]
                             (reset! cache {episode data})
                             this)}
-         (let [result-chan (core/query client tu/query-doc variables :fetch-policy :local-first)]
+         (let [result-chan (core/query! client tu/query-doc variables :fetch-policy :local-first)]
            (go (let [local-result (<! result-chan)]
                  (is (nil? (:data local-result)))
                  (is (= (:variables local-result) variables))
-                 (is (= (:source local-result) :local))
                  (is (= (:network-status local-result) :fetching))
                  (is (true? (:in-flight? local-result))))
 
@@ -82,7 +78,6 @@
                      closed?       (nil? (<! result-chan))]
                  (is (= (:data remote-result) "Luke Skywalker"))
                  (is (= (:variables remote-result) variables))
-                 (is (= (:source remote-result) :remote))
                  (is (= (:network-status remote-result) :ready))
                  (is (false? (:in-flight? remote-result)))
                  (is (= @cache {"The Empire Strikes Back" "Luke Skywalker"}))
@@ -99,11 +94,10 @@
           :store-write-fn (fn [this {:keys [data]} _ {:keys [episode]}]
                             (reset! cache {episode data})
                             this)}
-         (let [result-chan (core/query client tu/query-doc variables :fetch-policy :local-then-remote)]
+         (let [result-chan (core/query! client tu/query-doc variables :fetch-policy :local-then-remote)]
            (go (let [local-result (<! result-chan)]
                  (is (= (:data local-result) "R2D2"))
                  (is (= (:variables local-result) variables))
-                 (is (= (:source local-result) :local))
                  (is (= (:network-status local-result) :fetching))
                  (is (true? (:in-flight? local-result))))
 
@@ -114,7 +108,6 @@
                      closed?       (nil? (<! result-chan))]
                  (is (= (:data remote-result) "Luke Skywalker"))
                  (is (= (:variables remote-result) variables))
-                 (is (= (:source remote-result) :remote))
                  (is (= (:network-status remote-result) :ready))
                  (is (false? (:in-flight? remote-result)))
                  (is (= @cache {"The Empire Strikes Back" "Luke Skywalker"}))
@@ -131,11 +124,10 @@
           :store-write-fn (fn [this {:keys [data]} _ {:keys [episode]}]
                             (reset! cache {episode data})
                             this)}
-         (let [result-chan (core/query client tu/query-doc variables :fetch-policy :local-then-remote)]
+         (let [result-chan (core/query! client tu/query-doc variables :fetch-policy :local-then-remote)]
            (go (let [local-result (<! result-chan)]
                  (is (nil? (:data local-result)))
                  (is (= (:variables local-result) variables))
-                 (is (= (:source local-result) :local))
                  (is (= (:network-status local-result) :fetching))
                  (is (true? (:in-flight? local-result))))
 
@@ -146,7 +138,6 @@
                      closed?       (nil? (<! result-chan))]
                  (is (= (:data remote-result) "Luke Skywalker"))
                  (is (= (:variables remote-result) variables))
-                 (is (= (:source remote-result) :remote))
                  (is (= (:network-status remote-result) :ready))
                  (is (false? (:in-flight? remote-result)))
                  (is (= @cache {"The Empire Strikes Back" "Luke Skywalker"}))
@@ -162,11 +153,10 @@
         :store-write-fn (fn [this {:keys [data]} _ {:keys [episode]}]
                           (reset! cache {episode data})
                           this)}
-       (let [result-chan (core/query client tu/query-doc variables :fetch-policy :remote-only)]
+       (let [result-chan (core/query! client tu/query-doc variables :fetch-policy :remote-only)]
          (go (let [local-result  (<! result-chan)]
                (is (nil? (:data local-result)))
                (is (= (:variables local-result) variables))
-               (is (= (:source local-result) :local))
                (is (= (:network-status local-result) :fetching))
                (is (true? (:in-flight? local-result)))
                (is (= @cache {})))
@@ -178,7 +168,6 @@
                    closed?       (nil? (<! result-chan))]
                (is (= (:data remote-result) "Luke Skywalker"))
                (is (= (:variables remote-result) variables))
-               (is (= (:source remote-result) :remote))
                (is (= (:network-status remote-result) :ready))
                (is (false? (:in-flight? remote-result)))
                (is (= @cache {"The Empire Strikes Back" "Luke Skywalker"}))
@@ -188,4 +177,4 @@
 (deftest query-invalid
   (with-client
    (is (thrown? ExceptionInfo
-                (core/query client tu/query-doc :fetch-policy :something-else)))))
+                (core/query! client tu/query-doc :fetch-policy :something-else)))))

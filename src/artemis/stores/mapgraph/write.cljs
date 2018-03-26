@@ -85,102 +85,36 @@
                   (transient ent-m)
                   (mapcat #(normalize-entities % id-attrs) entities)))))))
 
-(defn combine-maps-of-seqs [list-of-maps]
-  "[{:one [1] :two [2]} {:one [1]} {:three [3]}] => {:one [1 1], :two [2], :three [3]}"
-  (let [m (apply (partial merge-with concat) list-of-maps)]
-    (map-vals m #(if (sequential? %) % (vector %)))))
+(defn format-for-cache [{:keys [store] :as context} selection-set result & [stub idx]]
+  "Converts a graphql response into the format that the mapgraph store needs for normalization and querying"
+  (let [stub (or stub "root")
+        by-alias-or-name (fn [sel] (if (:field-alias sel) (:field-alias sel) (:field-name sel)))
+        selections (group-by by-alias-or-name selection-set)
+        typename (:__typename result)]
+    (if (map? result)
+      (let [formatted
+            (into {} (map (fn [[k v]]
+                            (let [sel (->> k name (get selections) first)
 
-(defn- add-keys-to-selection [context selection stub]
-  "Returns the selection with the field key and the namespaced field key added to it"
-  (let [selection-key (field-key selection context)
-        namespaced-selection-key (str stub "." (name selection-key))]
-    (assoc selection ::key selection-key
-                     ::namespaced-key namespaced-selection-key)))
+                                  sel-key (field-key sel context)
+                                  new-k (if (and typename
+                                                 (not= stub "root") ; don't namespace fields at root level
+                                                 (not= :__typename sel-key) ; don't namespace typename
+                                                 (not (or (has-args? sel) ; don't namespace fields that require a custom string key
+                                                          (custom-dirs? sel))))
+                                          (keyword typename sel-key)
+                                          sel-key)
 
-(defn- path-selections
-  "Goes through the operation and pulls out all the selections
-   Returns a mapping of <path> => <list-of-selections-for-path>
-   These selections are also updated to include the key that will be used when
-   persisting results to the store."
-  ([ctx selection-or-operation]
-   (path-selections ctx selection-or-operation [] "root"))
-  ([ctx selection path stub]
-   (if (:field-name selection)
-     (let [field-name (:field-name selection)
-           current-path (conj path (keyword field-name))
-           sel-key (field-key selection ctx)
-           nsed-sel-key (str stub "." (name sel-key))
-           new-selection     (assoc selection ::key sel-key
-                                              ::namespaced-key nsed-sel-key)
-           pathed-selection {path new-selection}
-           pathed-child-selections (map #(path-selections ctx % current-path nsed-sel-key)
-                                        (:selection-set selection))
-           pathed-selections (conj pathed-child-selections pathed-selection)]
-       (combine-maps-of-seqs pathed-selections))
-     (combine-maps-of-seqs
-       (map (partial path-selections ctx) (:selection-set selection))))))
-
-
-(defn- modify-map-value [{:keys [store] :as context} selection m & [idx]]
-  "Does two things: namespaces the keys according to typename and attaches
-   a cache key if the map isn't already an entity that can be normalized"
-  (if (map? m)
-    (let [typename (:__typename m)
-          namespaced-map
-          (into {} (map (fn [[k v]]
-                          (let [new-k (if (and typename (not= :__typename k))
-                                        (keyword typename k)
-                                        k)]
-                            (vector new-k v)))
-                        m))]
-      (if (not (get-ref namespaced-map (:id-attrs store)))
-        (let [cache-key (if idx
-                          (str (::namespaced-key selection) "." idx)
-                          (::namespaced-key selection))]
-          (assoc namespaced-map (:cache-key store) cache-key))
-        namespaced-map))
-    m))
-
-(defn- modify-field [context result
-                    {:keys [field-alias field-name key namespaced-key] :as selection}]
-  "modify fields in the result if necessary. this applies to aliased fields, fields with arguments, etc"
-  (let [field-alias (keyword field-alias)
-        field-name (keyword field-name)
-        field-val (if (aliased? selection) (get result field-alias) (get result field-name))
-        field-val (cond
-                    (sequential? field-val)
-                    (map (partial modify-map-value context selection) field-val (range))
-                    (map? field-val)
-                    (modify-map-value context selection field-val)
-                    :else field-val)]
-    (if field-val ; only modify field if field val exists
-      (-> result
-          (dissoc field-name)
-          (dissoc field-alias)
-          (assoc (::key selection) field-val))
+                                  nsed-key (str stub "." (name sel-key))
+                                  new-v (if (sequential? v)
+                                          (map #(format-for-cache context (:selection-set sel) %1 nsed-key %2) v (range))
+                                          (format-for-cache context (:selection-set sel) v nsed-key))]
+                              (vector new-k new-v)))
+                          result))]
+        (if (not (get-ref formatted (:id-attrs store)))
+          (assoc formatted (:cache-key store) (str stub (when idx (str "." idx))))
+          formatted))
       result)))
-
-(defn- mapped-update-in
-  "Same as update-in but doesn't require indexes when it comes across a vector
-   it just applies the 'update-in' on every item in the vector"
-  [m [k & ks] f]
-  (let [val (get m k)]
-    (if (sequential? val)
-      (if ks
-        (assoc m k (map #(mapped-update-in % ks f) val))
-        (assoc m k (map f val)))
-      (if ks
-        (assoc m k (mapped-update-in val ks f))
-        (assoc m k (f val))))))
-
-(defn- modify-fields-reducer [context result [path selections]]
-  "Goes through all the pathed selections and updates the graphql result with the necessary modifications"
-  (let [modify-fields (fn [res selections]
-                        (reduce (partial modify-field context) res selections))]
-    (if (empty? path)
-      (modify-fields result selections)
-      (mapped-update-in result path #(modify-fields % selections)))))
-
 
 (defn write-to-cache
   "Writes a graphql response to the mapgraph store"
@@ -188,12 +122,5 @@
   (let [first-op (-> document :ast :operations first)
         context {:input-vars input-vars                     ; variables given to this op
                  :vars-info (:variables first-op)           ; info about the kinds of variables supported by this op
-                 :store store}
-        root? (= (:operation-type first-op) "query")
-        updated-res (if root? (assoc result (:cache-key store) :root) result)
-        pathed-selections (path-selections context first-op)
-        ; sorting these selections because we need to reduce over the deepest results first
-        sorted-pathed-selections (into (sorted-map-by (comp - count)) pathed-selections)
-        updated-res (reduce (partial modify-fields-reducer context) updated-res
-                            sorted-pathed-selections)]
-    (add store updated-res)))
+                 :store store}]
+    (add store (format-for-cache context (:selection-set first-op) result))))

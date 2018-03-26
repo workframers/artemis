@@ -1,6 +1,5 @@
 (ns artemis.stores.mapgraph.common)
 
-
 (defn map-vals [m f] (into {} (for [[k v] m] [k (f v)])))
 (defn map-keys [m f] (into {} (for [[k v] m] [(f k) v])))
 

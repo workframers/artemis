@@ -16,11 +16,10 @@
           store-write (fn [this _ _ _] (swap! counter inc) this)]
       (with-client
        {:store-write-fn store-write}
-       (let [result-chan (core/mutate client tu/mutation-doc variables)]
+       (let [result-chan (core/mutate! client tu/mutation-doc variables)]
          (go (let [local-result (<! result-chan)]
                (is (nil? (:data local-result)))
                (is (= (:variables local-result) variables))
-               (is (= (:source local-result) :local))
                (is (= (:network-status local-result) :fetching))
                (is (true? (:in-flight? local-result)))
                (is (zero? @counter)))
@@ -32,7 +31,6 @@
                    closed?       (nil? (<! result-chan))]
                (is (= (:data remote-result) {:createReview {:stars 4 :commentary "This is a great movie!"}}))
                (is (= (:variables remote-result) variables))
-               (is (= (:source remote-result) :remote))
                (is (= (:network-status remote-result) :ready))
                (is (false? (:in-flight? remote-result)))
                (is (= @counter 1))
@@ -45,7 +43,7 @@
           store-write (fn [this _ _ _] (swap! counter inc) this)]
       (with-client
        {:store-write-fn store-write}
-       (let [result-chan (core/mutate client tu/mutation-doc variables
+       (let [result-chan (core/mutate! client tu/mutation-doc variables
                                       :optimistic-result
                                       {:createReview
                                        {:stars 4
@@ -53,7 +51,6 @@
          (go (let [local-result (<! result-chan)]
                (is (= (:data local-result) {:createReview {:stars 4 :commentary "This is a great movie!"}}))
                (is (= (:variables local-result) variables))
-               (is (= (:source local-result) :local))
                (is (= (:network-status local-result) :fetching))
                (is (true? (:in-flight? local-result)))
                (is (= @counter 1)))
@@ -65,7 +62,6 @@
                    closed?       (nil? (<! result-chan))]
                (is (= (:data remote-result) {:createReview {:stars 4 :commentary "This is a great movie!"}}))
                (is (= (:variables remote-result) variables))
-               (is (= (:source remote-result) :remote))
                (is (= (:network-status remote-result) :ready))
                (is (false? (:in-flight? remote-result)))
                (is (= @counter 2))
