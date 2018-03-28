@@ -28,10 +28,10 @@
        (map? (:entities store))))
 
 (defn create-store
-  [& {:keys [id-attrs entities cache-key] :or {id-attrs #{} entities {} :cache-key ::cache}}]
-  {:post [(store? %)]}
+  [& {:keys [id-attrs entities cache-key]
+      :or {id-attrs #{} entities {} cache-key ::cache}}]
   (let [cache-key (or cache-key ::cache)]
-    (->MapGraphStore (conj id-attrs cache-key) entities cache-key)))
+    (MapGraphStore. (conj id-attrs cache-key) entities cache-key)))
 
 (defn clear
   "Returns a store with unique indexes and entities cleared out."
