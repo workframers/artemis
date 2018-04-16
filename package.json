@@ -1,6 +1,6 @@
 {
   "name": "artemis",
-  "license": "EPL-1.0",
+  "license": "Apache-2.0",
   "private": true,
   "devDependencies": {
     "karma": "^2.0.0",
