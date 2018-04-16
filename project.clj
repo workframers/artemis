@@ -15,9 +15,16 @@
             "test-jvm" ["with-profile" "test" "doo" "rhino" "test" "once"]
             "example" ["with-profile" "+examples" "run" "-m" "clojure.main" "script/repl.clj" "--example"]}
   :clean-targets ^{:protect false} [:target-path "resources/js"]
+  :codox {:metadata   {:doc/format :markdown}
+          :language   :clojurescript
+          :themes     [:rdash]
+          :source-uri "https://github.com/workframers/artemis/blob/artemis-{version}/{filepath}#L{line}"}
   :profiles
   {:dev {:dependencies [[figwheel-sidecar "0.5.0"]
                         [binaryage/devtools "0.9.9"]]}
+   :docs {:plugins [[lein-codox "0.10.3"]
+                    [lein-asciidoctor "0.1.15" :exclusions [org.slf4j/slf4j-api]]]
+          :dependencies [[codox-theme-rdash "0.1.2"]]}
    :examples {:source-paths ["examples/common"]
               :dependencies [[re-frame "0.10.5"]]}
    :test {:dependencies [[org.mozilla/rhino "1.7.7"]
