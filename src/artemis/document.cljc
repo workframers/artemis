@@ -10,14 +10,18 @@
     (keyword (name x))
     x))
 
-(defrecord Document [ast source])
+(defrecord
+  ^{:added "0.1.0"}
+  Document
+  [ast source])
 
 (s/fdef doc?
         :args (s/cat :x any?)
         :ret  boolean?)
 
 (defn doc?
-  "Returns true if x is a GraphQL document"
+  "Returns `true` if `x` is a GraphQL document."
+  {:added "0.1.0"}
   [x]
   (instance? Document x))
 
@@ -32,6 +36,7 @@
 
 (defn source
   "Returns the string source for a GraphQL document."
+  {:added "0.1.0"}
   [document]
   (:source document))
 
@@ -42,14 +47,15 @@
 
 (defn ast
   "Returns the alumbra-parsed AST for a GraphQL document."
+  {:added "0.1.0"}
   [document]
   (:ast document))
 
 #?(:clj
    (defmacro parse-document
-     "Parses a GraphQL query string and returns a GrqphQL document that
-     contains the original source string and an ast representation of the
-     source."
+     "Parses a GraphQL query string and emits a `Document` that contains the
+     original source string and an AST representation of the source in EDN."
+     {:added "0.1.0"}
      [source]
      (let [parsed (a/parse-document source)]
        (if (contains? parsed :alumbra/parser-errors)

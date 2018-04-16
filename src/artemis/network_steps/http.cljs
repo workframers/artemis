@@ -26,7 +26,10 @@
           (merge {:accept accept
                   params  (payload operation)})))))
 
-(defrecord HttpNetworkStep [url]
+(defrecord
+  ^{:added "0.1.0"}
+  HttpNetworkStep
+  [url]
   np/GQLNetworkStep
   (-exec [this operation context]
     (try
@@ -46,6 +49,9 @@
 
 ;; Public API
 (defn create-network-step
+  "Returns a new `HttpNetworkStep` for a given url. The url defaults to
+  `\"/graphql\"`. Makes requests via cljs-http."
+  {:added "0.1.0"}
   ([]
    (create-network-step "/graphql"))
   ([url]

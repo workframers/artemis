@@ -1,5 +1,5 @@
 (defproject com.workframe/artemis "0.1.0-SNAPSHOT"
-  :description "FIXME: write description"
+  :description "A minimal ClojureScript GraphQL client"
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
@@ -18,6 +18,8 @@
   :codox {:metadata   {:doc/format :markdown}
           :language   :clojurescript
           :themes     [:rdash]
+          :namespaces [#"^artemis\.((network-steps|stores)\.)?(\w+|)$"
+                       artemis.stores.mapgraph.core]
           :source-uri "https://github.com/workframers/artemis/blob/artemis-{version}/{filepath}#L{line}"}
   :profiles
   {:dev {:dependencies [[figwheel-sidecar "0.5.0"]
