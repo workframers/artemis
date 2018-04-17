@@ -1,14 +1,13 @@
 # artemis
 
-A Clojure library designed to ... well, that part is up to you.
+A minimal ClojrueScript GraphQL client.
 
 ## Usage
 
 FIXME
 
-# License
+## License
 
 Copyright © 2018 Workframe, Inc.
 
 Distributed under the Apache License, Version 2.0.
-
