@@ -1,5 +1,7 @@
 # artemis
 
+[![Clojars Project](https://img.shields.io/clojars/v/com.workframe/artemis.svg)](https://clojars.org/com.workframe/artemis)
+
 A minimal ClojureScript GraphQL client.
 
 Guides and API Docs: http://docs.workframe.com/artemis/current/
