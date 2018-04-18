@@ -1,0 +1,61 @@
+version: 2
+
+docker_defaults: &docker_defaults
+  docker:
+    - image: 191234350269.dkr.ecr.us-east-1.amazonaws.com/circleci-build:1.4
+      environment:
+        JAVA_OPTS: "-Xms512m -Xmx3200m"
+        LEIN_ROOT: nbd
+
+restore_anchor: &restore_anchor
+  restore_cache:
+    keys:
+      - workframe-artemis-js-{{ checksum "project.clj" }}
+      - workframe-artemis-js-{{ checksum "package.json" }}
+
+jobs:
+  dependencies:
+    <<: *docker_defaults
+    steps:
+      - checkout
+      - <<: *restore_anchor
+      - run:
+          name: clj-deps
+          command: lein with-profile +test,+docs deps
+      - run:
+          name: js-deps
+          command: yarn install
+      - save_cache:
+          key: workframe-artemis-js-{{ checksum "package.json" }}
+          paths:
+            - ./node_modules
+      - save_cache:
+          key: workframe-artemis-clj-{{ checksum "project.clj" }}
+          paths:
+            - ~/.m2
+  tests:
+    <<: *docker_defaults
+    steps:
+      - checkout
+      - <<: *restore_anchor
+      - run: lein test
+  docs:
+    <<: *docker_defaults
+    steps:
+      - checkout
+      - <<: *restore_anchor
+      - run: lein with-profile +docs codox
+      - store_artifacts:
+          path: target/doc
+
+workflows:
+  version: 2
+  tests_and_docs:
+    jobs:
+      - dependencies
+      - tests:
+          requires:
+            - dependencies
+      - docs:
+          requires:
+            - dependencies

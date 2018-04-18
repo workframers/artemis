@@ -20,13 +20,16 @@
                                                "Must be one of #{:json :edn}.")
                                           {:value  interchange-format})))]
     (http/post
-      (:url this)
+      (:uri this)
       (-> context
           (select-keys [:with-credentials? :oauth-token :basic-auth :headers])
           (merge {:accept accept
                   params  (payload operation)})))))
 
-(defrecord HttpNetworkStep [url]
+(defrecord
+  ^{:added "0.1.0"}
+  HttpNetworkStep
+  [uri]
   np/GQLNetworkStep
   (-exec [this operation context]
     (try
@@ -46,7 +49,10 @@
 
 ;; Public API
 (defn create-network-step
+  "Returns a new `HttpNetworkStep` for a given uri The uri defaults to
+  `\"/graphql\"`. Makes requests via cljs-http."
+  {:added "0.1.0"}
   ([]
    (create-network-step "/graphql"))
-  ([url]
-   (HttpNetworkStep. url)))
+  ([uri]
+   (HttpNetworkStep. uri)))
