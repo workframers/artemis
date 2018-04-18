@@ -1,12 +1,16 @@
 # The Network Chain
 
-Artemis implements a chain of steps that let you configure your network
-requests. We call it a "network chain", and it's made up of one or more
-"network steps". A network step represents some action between calling `query!`
-or `mutate!` and sending the request to your GraphQL server. For example, a
-network step might send the request via an HTTP client or WebSocket connection,
-or it could do something like log the request to the console or add an auth
-token.
+All Artemis queries require a client and all clients require a network chain.
+Here's what a network chain is and how you use it.
+
+When you call `query!` or `mutate!`, Artemis uses a chain of steps that let you
+configure your network requests. We call it a "network chain", and it's made up
+of one or more "network steps".
+
+A network step represents some action between calling `query!` or `mutate!` and
+sending the request to your GraphQL server.  For example, a network step might
+send the request via an HTTP client or WebSocket connection, or it could do
+something like log the request to the console or add an auth token.
 
 ## Creating a Network Chain
 
@@ -177,8 +181,8 @@ base http step as the next step:
       (.log js/console operation)
       (a/exec next-step operation context))))
 
-(defn http-step [url]
-  (http/create-network-step url))
+(defn http-step [uri]
+  (http/create-network-step uri))
 
 (def client (a/create-client :network-chain (-> (http-step "http://localhost:12345/")
                                                 log-step)))

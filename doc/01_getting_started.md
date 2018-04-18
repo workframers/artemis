@@ -1,13 +1,26 @@
 # Getting Started
 
-_We'll be using [swapi-graphql](https://github.com/graphql/swapi-graphql)
-to run through this guide. If you'd like to follow along verbatim, it's
-recommended that you clone the repo and start the server. Remember to update
-the server's CORS config to work with your CLJS app.
-**Access-Control-Allow-Origin** should be set to your app's URL and
-**Access-Control-Allow-Credentials** should be set to true_.
+## Preface
 
-Start off by creating a new Artemis client.
+We'll be using [swapi-graphql](https://github.com/graphql/swapi-graphql)
+to run through this guide. If you'd like to follow along verbatim, it's
+recommended that you clone the swapi-graphql repo and start the server with
+`npm start`.
+
+Remember to update the server's CORS config to work with your CLJS app.
+In `swap-graphql/src/server/main.js`, look for `app.use(cors())` and replace
+it with:
+
+```javascript
+app.use(cors({
+  origin: "http://localhost:3000", // or wherever your CLJS app is running
+  credentials: true
+}));
+```
+
+## Create a Client
+
+In you CLJS app, start off by creating a new Artemis client.
 
 ```clojure
 (require '[artemis.core :as a])
@@ -18,7 +31,8 @@ Start off by creating a new Artemis client.
 By default, this will make requests to the `/graphql` URI and will store our
 results in an in-memory normalized store. Implementation-wise, the store is
 built atop Stuart Sierra's
-[Mapgraph](https://github.com/stuartsierra/mapgraph).
+[Mapgraph](https://github.com/stuartsierra/mapgraph). We'll cover stores in
+later guides.
 
 The `/graphql` URI may not work for everyone. We can configure it by creating
 an HTTP-based network-chain that we pass to `create-client`. We'll go over what

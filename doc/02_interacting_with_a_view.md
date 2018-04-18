@@ -53,7 +53,7 @@ Then, change your component to look like this:
 ```
 
 Now we'll be able to `reset!` our ratom when we get a message from Artemis. Do
-so by updating our `query!` so that it's within go block, allowing us to take
+so by updating our `query!` so that it's within a go block, allowing us to take
 from the channel.
 
 ```clojure
@@ -63,7 +63,7 @@ from the channel.
       (reset! gql-result x)))
 ```
 
-Your browser should now display something like this:
+Your page should now display something like this:
 
 ```clojure
 {:data nil, :variables nil, :in-flight? true, :network-status :fetching}
@@ -99,18 +99,20 @@ Our view now shows this:
 ```
 
 Awesome! And, if we inspect each of the messages, it should be apparent what
-each message tells us about our query.
+each tells us about our query.
 
 The first message let's us know that we don't have any data available, and
 that's because our network status is currently `:fetching`, meaning we're
 getting the data. You'll also notice that `:in-flight?` is `true` for the first
-message, so we know our query is currently over the wire.
+message, so we know our query is currently over the wire. The second message,
+of course, shows different values for these keys.
 
-We can use this kind of information to easily render loading indicators, or
-delay transitions. And with that, we arrive at the main design pattern that
-Artemis presents: using a channel to hold stateful, ordered updates on our data
-fetching and manipulation. This becomes especially useful when we're querying
-multiple sources, such as a local cache and a server, as we'll see later.
+We can use this kind of information per-message to easily render loading
+indicators, or delay transitions. And with that, we arrive at the main design
+pattern that Artemis presents: using a channel to hold stateful, ordered
+updates on our data fetching and manipulation. This becomes especially useful
+when we're querying multiple sources, such as a local cache and a server, as
+we'll see later.
 
 For now, let's just use the data to render our planet's name. Update our
 component to get the data:

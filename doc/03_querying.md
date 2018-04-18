@@ -6,8 +6,8 @@ when fetching data. Let's go over some of the things you can do with it.
 ## Creating a Document
 
 Before moving on, let's take a step-back and look at the `parse-document`
-macro. We've been using this macro to whenever we've executed a query, so
-what's its purpose?
+macro. We've been using this macro whenever we've executed a query, so what's
+its purpose?
 
 According to the GraphQL spec, a Document describes a complete request string
 operated on by a GraphQL service. A Document looks something like this, then:
@@ -20,7 +20,7 @@ query getPerson {
 }
 ```
 
-That's create for statically describing the GraphQL query, but strings are
+That's great for statically describing the GraphQL query, but strings are
 hard to work with in code. So, we use the `parse-document` macro to take those
 GraphQL document strings and turn them into something we can use in Clojure.
 Whenever we parse a document, we get back an instance of the
@@ -61,16 +61,15 @@ Whenever we parse a document, we get back an instance of the
 ```
 
 The EDN form of the GraphQL document makes it easier to do programmatic things,
-like create validating a query, or checking against a local cache (as we'll
-see later, Artemis passes the parsed document to the store associated with your
-client).
+like validating a query, or checking against a local cache (as we'll see later,
+Artemis passes the parsed document to the store associated with your client).
 
 The `ast` function returns the EDN produced by
 [alumbra.parser](https://github.com/alumbra/alumbra.parser), a GraphQL parsing
 library.
 
 Once you have a Document instance, it's also useful to be able to get its
-original string form, since that's what a GraphQL server expects. The do so,
+original string form, since that's what a GraphQL server expects. To do so,
 simply call `artemis.document/source` on the record instance:
 
 ```clojure
@@ -83,10 +82,10 @@ simply call `artemis.document/source` on the record instance:
 ## Querying with Variables
 
 Now that we understand how basic queries work, let's take a look at how we can
-use variables to create more dynamic and reusable queries. To do so, let's jump
-back into our sample application and update our query so that it uses a
-variable for the planet query. To get started off, here's what our entire
-application code should look like:
+use variables to create more dynamic and reusable queries. Let's jump back into
+our sample application and update our query so that it uses a variable for the
+planet query. To get started off, here's what our entire application code
+should look like:
 
 ```clojure
 (ns my-app.view
@@ -101,7 +100,7 @@ application code should look like:
 (def net-chain (http/create-network-step "http://localhost:12345/"))
 (def client (a/create-client :network-chain net-chain))
 
-;; This part changed!
+;; Change our query to use variables!
 (def planet-info (parse-document "query planetInfo($id:ID!) { planet(id:$id) { id name } }"))
 
 (defn my-app []

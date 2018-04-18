@@ -41,6 +41,9 @@ store you'd like -- DataScript, IndexedDB, Local Storage, whatever you want --
 Artemis will call those functions with the right information at the right
 times.
 
+Check out the [API docs](./artemis.stores.protocols.html) for more on implement
+reading and writing.
+
 ## Mapgraph Store
 
 While you can build your own `GQLStore`, it can potentially be complicated to
@@ -156,9 +159,9 @@ code:
 
 If we refresh our browser, everything should feel the same. But, under the hood
 the Mapgraph store has stored the Tatooine planet as a normalized entity based
-off of the ID `"cGxhbmV0czox"`. This means the any time time we get a GraphQL
-result that references a planet with the ID `"cGxhbmV0czox"` it will be
-reconciled with the values we've already got at the primary key.
+off of the ID `"cGxhbmV0czox"`. This means the any time we get a GraphQL result
+that references a planet with the ID `"cGxhbmV0czox"` it will be reconciled
+with the values we've already got at the primary key.
 
 Additionally, we can now run queries against that local store. In fact, we're
 already doing that by changing our fetch policy to `:local-then-remote`, but
@@ -190,7 +193,7 @@ will only try to run the query against the local store.
 
 Fetch policies allow us to tell the client how and where we want it to execute
 our queries. We can choose the right policy depending on our application's
-needs. For example, if we have some data that we absolutely now is cached in
+needs. For example, if we have some data that we absolutely know is cached in
 our local store and is highly unlikely to change, we may want to save on
 bandwidth by setting the policy to `:local-only`. Conversely, if we have
 something that is highly likely to change we may want to use `:remote-only`,
@@ -209,18 +212,6 @@ what's going on remotely. By default, Artemis will only attempt to write to the
 local store after a successful remote write. If you'd like the store to perform
 its write optimistically, you can pass a value to the `:optimistic-result`
 option when calling `mutate!`. You can read more about that in the next guide.
-
-If you've made it through all of these guides, you should now know how to
-create an Artemis client, execute queries and mutations, and configure your
-client with a network chain and local store. You should also now know how
-channels work in Artemis, and how queries and updates are managed with the
-local store. That covers most of what you'll use Artemis for, but there are a
-few extras. Feel free to read through the next guide for some more advanced
-examples, and take a look at the API docs for a full idea of the functions
-available to you.
-
-Hope you enjoy using Artemis, and please send the Workframe team feedback
-and/or ideas on how to improve our library and its documentation!
 
 ## Fetch Policies
 
