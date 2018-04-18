@@ -1,10 +1,8 @@
 # artemis
 
-A minimal ClojrueScript GraphQL client.
+A minimal ClojureScript GraphQL client.
 
-## Usage
-
-FIXME
+Guides and API Docs: http://docs.workframe.com/artemis/current/
 
 ## License
 
