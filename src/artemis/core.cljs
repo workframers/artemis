@@ -1,6 +1,6 @@
 (ns artemis.core
   (:refer-clojure :exclude [read])
-  (:require-macros [cljs.core.async.macros :refer [go]])
+  (:require-macros [cljs.core.async.macros :refer [go go-loop]])
   (:require [artemis.stores.mapgraph.core :as mgs]
             [artemis.stores.protocols :as sp]
             [artemis.network-steps.http :as http]
@@ -102,7 +102,7 @@
 
 (s/fdef write
         :args (s/cat :store           ::store
-                     :data            ::data ;; Figure out the right names for all of these things
+                     :data            ::data ; Figure out the right names for all of these things
                      :document        ::document
                      :variables       ::variables)
         :ret  ::store)
@@ -134,7 +134,7 @@
                                :variables (s/? map?)
                                :options   (s/keys* :opt-un [::out-chan
                                                             ::fetch-policy
-                                                            ::return-partial? ;; maybe
+                                                            ::return-partial? ; maybe
                                                             ::context])))
         :ret  ::out-chan)
 
@@ -307,7 +307,7 @@
   - `:out-chan`          The channel to put mutation messages onto. Defaults to
                          `(cljs.core.async/channel)`.
   - `:context`           A map of context to pass along when executing the
-                          network chain. Defaults to `{}`.
+                         network chain. Defaults to `{}`.
   - `:optimistic-result` A map describing an anticipated/optimistic result.
                          The optimistic result will be put onto the channel
                          before waiting for a successful mutation response."
@@ -345,3 +345,62 @@
                               :network-status :ready))
            (async/close! out-chan)))
      out-chan)))
+
+(defn- probably-unique-id
+  "Using this over `(random-uuid)` because it's faster. Very minor risk of
+  ID clashing."
+  []
+  (-> (.random js/Math)
+      (.toString 36)
+      (.substr 2 9)))
+
+(s/def ::ws-id any?)
+
+(s/fdef subscribe!
+        :args (s/alt
+               :arity-2 (s/cat :client   ::client
+                               :document ::document)
+               :arity-n (s/cat :client    ::client
+                               :document  ::document
+                               :variables (s/? map?)
+                               :options   (s/keys* :opt-un [::out-chan
+                                                            ::ws-id
+                                                            ::context])))
+        :ret  ::out-chan)
+
+(defn subscribe!
+  "Given a client, document, and optional `:variables` and `:options`,
+  establishes a GraphQL subscription over a WebSocket connection, returning a
+  channel that will receive a stream of updates from the server. Note that
+  GraphQL subscriptions only listen for updates from the server, they don't
+  request any data and so won't receive any when the connection is established.
+  If you need an initial set of data, combine `subscribe!` with `query!`,
+  setting an appropriate `:fetch-policy`.
+
+  The `:variables` argument is a map of variables for the GraphQL subscription.
+
+  The `:options` argument is a map optionally including:
+
+  - `:out-chan`          The channel to put subscription update messages onto.
+                         Defaults to `(cljs.core.async/channel)`.
+  - `:ws-id`             A unique ID for the subscription. Can be used to
+                         unsubscribe from updates. Defaults to a generated
+                         unique ID.
+  - `:context`           A map of context to pass along when executing the
+                         network chain. Defaults to `{}`. "
+  {:added "0.1.0"}
+  ([client document]
+   (subscribe! client document {}))
+  ([client document & args]
+   (let [{:keys [variables options]} (vars-and-opts args)
+         {:keys [out-chan ws-id context]
+          :or   {out-chan (async/chan)
+                 ws-id    (probably-unique-id)
+                 context  {}}} options]
+     (go-loop [results-chan (exec (:network-chain client)
+                                  {:document  document
+                                   :variables variables}
+                                  (assoc context :ws-sub-id ws-id))]
+       (when-let [message (async/<! results-chan)]
+         (async/put! out-chan message)
+         (recur results-chan))))))
