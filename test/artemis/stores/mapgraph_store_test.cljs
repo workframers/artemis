@@ -2,6 +2,7 @@
   (:require [cljs.test :refer-macros [deftest is testing async]]
             [artemis.core :as a]
             [artemis.document :as d]
+            [clojure.pprint :refer [pprint]]
             [artemis.stores.mapgraph.core :refer [create-store]]))
 
 (def test-queries
@@ -349,6 +350,99 @@
                 :object/nullField   nil
                 :__typename         "object"}}}
 
+   :deeply-nested-array
+   {:query    (d/parse-document
+                "{
+                   id
+                   stringField
+                   numberField
+                   nullField
+                   nestedArray {
+                     stringField
+                     numberField
+                     nullField
+                     deeplyNestedArray {
+                       numberField
+                       stringField
+                     }
+                     __typename
+                   }
+                 }")
+    :result   {:id          "abcd"
+               :stringField "this is a string"
+               :numberField 1
+               :nullField   nil
+               :nestedArray [{:stringField       "this is a string too"
+                              :numberField       2
+                              :nullField         nil
+                              :deeplyNestedArray [{:numberField 10
+                                                   :stringField "Foo"}
+                                                  {:numberField 20
+                                                   :stringField "Bar"}]
+                              :__typename        "object"}
+                             {:stringField       "this is a string also"
+                              :numberField       3
+                              :deeplyNestedArray [{:numberField 30
+                                                   :stringField "Baz"}
+                                                  {:numberField 40
+                                                   :stringField "Boo"}]
+                              :nullField         nil
+                              :__typename        "object"}
+
+                             {:stringField       "this is a string, man"
+                              :numberField       6
+                              :deeplyNestedArray []
+                              :nullField         nil
+                              :__typename        "object"}]}
+    :entities {[::cache "root"]
+               {:id          "abcd"
+                :stringField "this is a string"
+                :numberField 1
+                :nullField   nil
+                :nestedArray [[::cache "root.nestedArray.0"]
+                              [::cache "root.nestedArray.1"]
+                              [::cache "root.nestedArray.2"]]
+                ::cache      "root"}
+               [::cache "root.nestedArray.0"]
+               {:object/stringField "this is a string too"
+                :object/numberField 2
+                :object/nullField   nil
+                :object/deeplyNestedArray [[::cache "root.nestedArray.0.deeplyNestedArray.0"]
+                                           [::cache "root.nestedArray.0.deeplyNestedArray.1"]]
+                :__typename         "object"
+                ::cache             "root.nestedArray.0"}
+               [::cache "root.nestedArray.1"]
+               {:object/stringField "this is a string also"
+                :object/numberField 3
+                :object/nullField   nil
+                :object/deeplyNestedArray [[::cache "root.nestedArray.1.deeplyNestedArray.0"]
+                                           [::cache "root.nestedArray.1.deeplyNestedArray.1"]]
+                :__typename         "object"
+                ::cache             "root.nestedArray.1"}
+               [::cache "root.nestedArray.2"]
+               {:object/stringField       "this is a string, man"
+                :object/numberField       6
+                :object/nullField         nil
+                :object/deeplyNestedArray []
+                :__typename               "object"
+                ::cache                   "root.nestedArray.2"}
+               [::cache "root.nestedArray.0.deeplyNestedArray.0"]
+               {:numberField 10
+                :stringField "Foo"
+                ::cache      "root.nestedArray.0.deeplyNestedArray.0"}
+               [::cache "root.nestedArray.0.deeplyNestedArray.1"]
+               {:numberField 20
+                :stringField "Bar"
+                ::cache      "root.nestedArray.0.deeplyNestedArray.1"}
+               [::cache "root.nestedArray.1.deeplyNestedArray.0"]
+               {:numberField 30
+                :stringField "Baz"
+                ::cache      "root.nestedArray.1.deeplyNestedArray.0"}
+               [::cache "root.nestedArray.1.deeplyNestedArray.1"]
+               {:numberField 40
+                :stringField "Boo"
+                ::cache      "root.nestedArray.1.deeplyNestedArray.1"}}}
+
    :nested-array-without-ids
    {:query    (d/parse-document
                 "{
@@ -618,8 +712,18 @@
           store (create-store :id-attrs #{:object/id :nested-object/id}
                               :entities entities
                               :cache-key ::cache)
-          response (a/read store query input-vars false)]
-      (is (= {:data result} response)))))
+          response (a/read store query input-vars false)
+          resultt (= {:data result} response)]
+      (do
+        (if (not resultt)
+          (do
+            (pprint "ACTUAL")
+            (pprint response)
+            (pprint "EXPECTED")
+            (pprint {:data result})
+            (pprint "store")
+            (pprint store)))
+        (is (= {:data result} response))))))
 
 (deftest test-cache-reading
   (doseq [test-query (keys test-queries)]

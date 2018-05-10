@@ -1644,6 +1644,10 @@ karma-cljs-test@^0.1.0:
   version "0.1.0"
   resolved "https://registry.yarnpkg.com/karma-cljs-test/-/karma-cljs-test-0.1.0.tgz#cb8605ef0e11f9a6f6d28f56ba5dbdf26f389923"
 
+karma-firefox-launcher@^1.1.0:
+  version "1.1.0"
+  resolved "https://registry.yarnpkg.com/karma-firefox-launcher/-/karma-firefox-launcher-1.1.0.tgz#2c47030452f04531eb7d13d4fc7669630bb93339"
+
 karma@^2.0.0:
   version "2.0.0"
   resolved "https://registry.yarnpkg.com/karma/-/karma-2.0.0.tgz#a02698dd7f0f05ff5eb66ab8f65582490b512e58"
