@@ -712,18 +712,8 @@
           store (create-store :id-attrs #{:object/id :nested-object/id}
                               :entities entities
                               :cache-key ::cache)
-          response (a/read store query input-vars false)
-          resultt (= {:data result} response)]
-      (do
-        (if (not resultt)
-          (do
-            (pprint "ACTUAL")
-            (pprint response)
-            (pprint "EXPECTED")
-            (pprint {:data result})
-            (pprint "store")
-            (pprint store)))
-        (is (= {:data result} response))))))
+          response (a/read store query input-vars false)]
+      (is (= {:data result} response)))))
 
 (deftest test-cache-reading
   (doseq [test-query (keys test-queries)]
