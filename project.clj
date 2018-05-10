@@ -34,8 +34,7 @@
   :profiles
   {:dev {:dependencies
          [[figwheel-sidecar   "0.5.0"]
-          [binaryage/devtools "0.9.9"]]
-         :source-paths ["src" "etc/repl"]}
+          [binaryage/devtools "0.9.9"]]}
 
    :docs {:plugins
           [[lein-codox       "0.10.3"]
@@ -49,9 +48,6 @@
 
               :dependencies
               [[re-frame "0.10.5"]]}
-
-   :stories
-   {:test-paths   ^:replace []}
 
    :test {:plugins
           [[lein-doo "0.1.8"]]
