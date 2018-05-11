@@ -9,10 +9,7 @@
     (update result :errors concat errors)))
 
 (defn result->message
-  "Takes a result and returns a map containing at least a `:data` key and
-  nothing in addition to `:data` and `:errors` keys."
+  "Takes a result and returns a map containing at least a `:data`."
   {:added "0.1.0"}
   [result]
-  (-> result
-      (select-keys [:data :errors])
-      (update :data identity)))
+  (-> result (update :data identity)))

@@ -6,7 +6,7 @@
             [artemis.network-steps.http :as http]
             [artemis.network-steps.protocols :as np]
             [artemis.document :as d]
-            [artemis.result :refer [result->message]]
+            [artemis.result :refer [result->message with-errors]]
             [clojure.spec.alpha :as s]
             [cljs.core.async :as async]
             [cljs.core.async.impl.protocols :refer [WritePort ReadPort]]))
@@ -397,10 +397,11 @@
           :or   {out-chan (async/chan)
                  ws-id    (probably-unique-id)
                  context  {}}} options]
-     (go-loop [results-chan (exec (:network-chain client)
-                                  {:document  document
-                                   :variables variables}
-                                  (assoc context :ws-sub-id ws-id))]
-       (when-let [message (async/<! results-chan)]
-         (async/put! out-chan message)
-         (recur results-chan))))))
+     (let [results-chan    (exec (:network-chain client)
+                                 {:document  document
+                                  :variables variables}
+                                 (assoc context :ws-sub-id ws-id))
+           assoc-variables #(assoc % :variables variables)
+           msg-txf         (map (comp assoc-variables result->message))]
+       (go (async/pipeline 1 out-chan msg-txf results-chan))
+       out-chan))))
