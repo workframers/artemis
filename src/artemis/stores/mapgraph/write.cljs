@@ -85,7 +85,7 @@
                   (transient ent-m)
                   (mapcat #(normalize-entities % id-attrs) entities)))))))
 
-(defn format-for-cache [{:keys [store] :as context} selection-set result & [stub idx]]
+(defn format-for-cache [{:keys [store] :as context} selection-set result & [stub]]
   "Converts a graphql response into the format that the mapgraph store needs for normalization and querying"
   (let [stub (or stub "root")
         by-alias-or-name (fn [sel] (if (:field-alias sel) (:field-alias sel) (:field-name sel)))
@@ -95,7 +95,6 @@
       (let [formatted
             (into {} (map (fn [[k v]]
                             (let [sel (->> k name (get selections) first)
-
                                   sel-key (field-key sel context)
                                   new-k (if (and typename
                                                  (not= stub "root") ; don't namespace fields at root level
@@ -107,12 +106,14 @@
 
                                   nsed-key (str stub "." (name sel-key))
                                   new-v (if (sequential? v)
-                                          (map #(format-for-cache context (:selection-set sel) %1 nsed-key %2) v (range))
+                                          (mapv (fn [result idx]
+                                                  (format-for-cache context (:selection-set sel) result (str nsed-key "." idx)))
+                                                v (range))
                                           (format-for-cache context (:selection-set sel) v nsed-key))]
                               (vector new-k new-v)))
                           result))]
         (if (not (get-ref formatted (:id-attrs store)))
-          (assoc formatted (:cache-key store) (str stub (when idx (str "." idx))))
+          (assoc formatted (:cache-key store) stub)
           formatted))
       result)))
 
