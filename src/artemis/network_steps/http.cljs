@@ -49,7 +49,7 @@
 
 ;; Public API
 (defn create-network-step
-  "Returns a new `HttpNetworkStep` for a given uri The uri defaults to
+  "Returns a new `HttpNetworkStep` for a given uri. The uri defaults to
   `\"/graphql\"`. Makes requests via cljs-http."
   {:added "0.1.0"}
   ([]

@@ -179,3 +179,50 @@ Then wrap your query in a function that takes a fetch policy and pass it to
 
 (poll! q! 5000)
 ```
+
+## GraphQL Subscriptions
+
+Most of the guides cover querying and mutating. The GraphQL spec, however, also
+supports a third operation type: subscriptions. To create subscription with
+Artemis, call `artemis.core/subscribe!`, passing it a client, document,
+variables, and options. Artemis will attempt to set-up a subscription with your
+GraphQL server via WebSockets, so it's essential that your network chain
+includes a step that establishes the WebSocket connection. For convenience,
+Artemis includes a basic network step that'll manage WebSocket-based GraphQL
+subscriptions:
+
+```clojure
+(require '[artemis.network-steps.ws-subscription :as ws])
+
+(ws/create-ws-subscription-step "ws://localhost:4000/subscriptions")
+```
+
+To combine it with an exisiting step that executes your queries and mutations
+(the basic http step, for example), you can use the `with-ws-subscriptions`
+helper function.
+
+```clojure
+(require '[artemis.network-steps.http :as http]
+         '[artemis.network-steps.ws-subscription :as ws])
+
+(def net-chain (ws/with-ws-subscriptions
+                (http/create-network-step "http://localhost:4000/graphql")
+                (ws/create-ws-subscription-step "ws://localhost:4000/subscriptions"))
+```
+
+With that all done, you can subscribe:
+
+```clojure
+(let [message-added-doc  (parse-document
+                          "subscription($id:ID!) {
+                            messageAdded(channelId:$id) {
+                              id
+                              text
+                            }
+                          }")
+      message-added-chan (a/subscribe! client message-added-doc {:id 1})]
+  (go-loop []
+    (when-let [r (<! message-added-chan)]
+      (.log js/console "Message added:" r)
+      (recur))))
+```

@@ -38,3 +38,12 @@
         commentary
       }
     }"))
+
+(def subscription-doc
+  (parse-document
+    "subscription($id: ID!) {
+      messageAdded(channelId:$id) {
+        id
+        text
+      }
+    }"))

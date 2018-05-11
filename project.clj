@@ -8,6 +8,7 @@
   [[org.clojure/clojure       "1.9.0"]
    [org.clojure/clojurescript "1.9.946"]
    [cljs-http                 "0.1.44"]
+   [haslett                   "0.1.2"]
    [alumbra/parser            "0.1.7"]
    [alumbra/errors            "0.1.1"]]
 
