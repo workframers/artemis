@@ -1,7 +1,7 @@
 (ns artemis.stores.mapgraph.read
   (:require [clojure.set :refer [rename-keys]]
             [artemis.stores.mapgraph.common :refer [like get-ref map-keys]]
-            [artemis.stores.mapgraph.selections :refer [field-key aliased?]]))
+            [artemis.stores.mapgraph.selections :refer [field-key aliased? ref-join-expr]]))
 
 (defn- entity?
   "Returns true if map is an entity according to the db schema. An
@@ -64,7 +64,7 @@
   [{:keys [entities] :as store} result pull-map entity gql-context]
   (reduce-kv
     (fn [result k join-expr]
-      (let [{:keys [expr entity]} (expr-and-entity-for-gql k entity gql-context)
+      (let [{:keys [expr entity selection]} (expr-and-entity-for-gql k entity gql-context)
             k expr]
         (if (contains? entity k)
           (let [val (get entity k)]
@@ -73,7 +73,13 @@
               (assoc result k val)
 
               (ref? store val)
-              (assoc result k (pull store join-expr val gql-context))
+              (assoc result k (pull store
+                                    (ref-join-expr
+                                     join-expr
+                                     (some-> entity (get expr) first namespace)
+                                     selection)
+                                    val
+                                    gql-context))
 
               :else
               (do (when-not (coll? val)
@@ -83,7 +89,14 @@
                                      ::entity           entity
                                      ::attribute        k
                                      ::value            val})))
-                  (assoc result k (like val (map #(pull store join-expr % gql-context) val))))))
+                  (assoc result k (like val (map #(pull store
+                                                        (ref-join-expr
+                                                         join-expr
+                                                         (some-> % first namespace)
+                                                         selection)
+                                                        %
+                                                        gql-context)
+                                                 val))))))
           ;; no value for key
           result)))
     result

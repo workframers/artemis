@@ -2,7 +2,6 @@
   (:require [cljs.test :refer-macros [deftest is testing async]]
             [artemis.core :as a]
             [artemis.document :as d]
-            [clojure.pprint :refer [pprint]]
             [artemis.stores.mapgraph.core :refer [create-store]]))
 
 (def test-queries
@@ -692,12 +691,84 @@
                 :numberField 3
                 :nullField   nil
                 :nestedObj   nil
-                ::cache      "root"}}}})
+                ::cache      "root"}}}
+
+     :union-array
+     {:query    (d/parse-document
+                  "{
+                     search(text: \"a\") {
+                       ... on object {
+                         id
+                         stringField
+                         __typename
+                       }
+                       ... on otherobject {
+                         id
+                         numberField
+                         __typename
+                       }
+                     }
+                   }")
+      :result   {:search
+                 [{:id          "abcd"
+                   :stringField "this is a string"
+                   :__typename  "object"}
+                  {:id          "efgh"
+                   :numberField 3
+                   :__typename  "otherobject"}]}
+      :entities {[::cache "root"]
+                 {"search({\"text\":\"a\"})" [[:object/id "abcd"] [:otherobject/id "efgh"]]
+                  ::cache "root"}
+                 [:object/id "abcd"]
+                 {:object/id          "abcd"
+                  :object/stringField "this is a string"
+                  :__typename         "object"}
+                 [:otherobject/id "efgh"]
+                 {:otherobject/id          "efgh"
+                  :otherobject/numberField 3
+                  :__typename              "otherobject"}}}
+
+     :nested-union
+     {:query    (d/parse-document
+                  "{
+                     id
+                     stringField
+                     unionObj {
+                       ... on object {
+                         id
+                         numberField
+                         stringField
+                         __typename
+                       }
+                       ... on otherobject {
+                         id
+                         name
+                         __typename
+                       }
+                     }
+                   }")
+      :result   {:id          "a"
+                 :stringField "this is a string"
+                 :unionObj    {:id          "abcd"
+                               :stringField "this is a string"
+                               :numberField 3
+                               :__typename  "object"}}
+      :entities {[::cache "root"]
+                 {:id          "a"
+                  :stringField "this is a string"
+                  :unionObj    [:object/id "abcd"]
+                  ::cache      "root"}
+                 [:object/id "abcd"]
+                 {:object/id          "abcd"
+                  :object/stringField "this is a string"
+                  :object/numberField 3
+                  :__typename         "object"}}}
+})
 
 (defn write-test [k]
   (testing (str "testing normalized cache persistence for query type: " k)
     (let [{:keys [query input-vars result entities]} (get test-queries k)
-          initial-store (create-store :id-attrs #{:object/id :nested-object/id}
+          initial-store (create-store :id-attrs #{:object/id :nested-object/id :otherobject/id}
                                       :cache-key ::cache)
           new-store (a/write initial-store {:data result} query input-vars)]
       (is (= entities (:entities new-store))))))

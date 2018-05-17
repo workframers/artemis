@@ -1,6 +1,6 @@
 (ns artemis.stores.mapgraph.write
   (:require [artemis.stores.mapgraph.common :refer [get-ref like map-keys map-vals]]
-            [artemis.stores.mapgraph.selections :refer [has-args? custom-dirs? aliased? field-key]]))
+            [artemis.stores.mapgraph.selections :as sel :refer [has-args? custom-dirs? aliased?]]))
 
 (defn- into!
   "Transient version of clojure.core/into"
@@ -95,7 +95,12 @@
       (let [formatted
             (into {} (map (fn [[k v]]
                             (let [sel (->> k name (get selections) first)
-                                  sel-key (field-key sel context)
+                                  sel-key (sel/field-key sel context)
+                                  _ (when (nil? sel-key)
+                                      (throw (ex-info (str "Key `" k "` found in response, but not in query.")
+                                                      {:reason ::key-not-in-query
+                                                       ::atribute k
+                                                       ::value v})))
                                   new-k (if (and typename
                                                  (not= stub "root") ; don't namespace fields at root level
                                                  (not= :__typename sel-key) ; don't namespace typename
@@ -103,13 +108,12 @@
                                                           (custom-dirs? sel))))
                                           (keyword typename sel-key)
                                           sel-key)
-
                                   nsed-key (str stub "." (name sel-key))
                                   new-v (if (sequential? v)
                                           (mapv (fn [result idx]
-                                                  (format-for-cache context (:selection-set sel) result (str nsed-key "." idx)))
+                                                  (format-for-cache context (sel/selection-set sel result) result (str nsed-key "." idx)))
                                                 v (range))
-                                          (format-for-cache context (:selection-set sel) v nsed-key))]
+                                          (format-for-cache context (sel/selection-set sel v) v nsed-key))]
                               (vector new-k new-v)))
                           result))]
         (if (not (get-ref formatted (:id-attrs store)))
