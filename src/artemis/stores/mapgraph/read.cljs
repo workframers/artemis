@@ -74,10 +74,7 @@
 
               (ref? store val)
               (assoc result k (pull store
-                                    (ref-join-expr
-                                     join-expr
-                                     (some-> entity (get expr) first namespace)
-                                     selection)
+                                    (ref-join-expr entities join-expr (get entity expr) selection)
                                     val
                                     gql-context))
 
@@ -90,10 +87,7 @@
                                      ::attribute        k
                                      ::value            val})))
                   (assoc result k (like val (map #(pull store
-                                                        (ref-join-expr
-                                                         join-expr
-                                                         (some-> % first namespace)
-                                                         selection)
+                                                        (ref-join-expr entities join-expr % selection)
                                                         %
                                                         gql-context)
                                                  val))))))

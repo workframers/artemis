@@ -81,14 +81,15 @@
             sel-set)))
 
 (defn ref-join-expr
-  "When selection is a union-type selection, resolves the join-expr for the
-  provided typename. Otherwise, just returns the regular join-expr."
-  [join-expr typename selection]
+  "When selection is a union-type selection, resolves the join-expr by looking
+  up the typename. Otherwise, just returns the regular join-expr."
+  [entities join-expr lookup-ref selection]
   (if-not (type-cond? selection)
     join-expr
     (reduce (fn [acc [condition selection]]
-              (if (= (:type-name (:type-condition condition)) typename)
-                (into acc selection)
+              (if (= (:type-name (:type-condition condition))
+                     (:__typename (get entities lookup-ref)))
+                (reduced (into acc selection))
                 acc))
             []
             ;; converting map to tuples for easier access of individual key/val

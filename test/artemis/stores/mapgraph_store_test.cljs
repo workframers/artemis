@@ -718,7 +718,7 @@
                    :__typename  "otherobject"}]}
       :entities {[::cache "root"]
                  {"search({\"text\":\"a\"})" [[:object/id "abcd"] [:otherobject/id "efgh"]]
-                  ::cache "root"}
+                  ::cache                    "root"}
                  [:object/id "abcd"]
                  {:object/id          "abcd"
                   :object/stringField "this is a string"
@@ -727,6 +727,34 @@
                  {:otherobject/id          "efgh"
                   :otherobject/numberField 3
                   :__typename              "otherobject"}}}
+
+     :union-array-no-id
+     {:query    (d/parse-document
+                  "{
+                     search(text: \"a\") {
+                       ... on someobject {
+                         stringField
+                         __typename
+                       }
+                     }
+                   }")
+      :result   {:search
+                 [{:stringField "this is a string"
+                   :__typename  "someobject"}
+                  {:stringField "this is another string"
+                   :__typename  "someobject"}]}
+      :entities {[::cache "root"]
+                 {"search({\"text\":\"a\"})" [[::cache "root.search({\"text\":\"a\"}).0"]
+                                              [::cache "root.search({\"text\":\"a\"}).1"]]
+                  ::cache                    "root"}
+                 [::cache "root.search({\"text\":\"a\"}).0"]
+                 {:someobject/stringField "this is a string"
+                  :__typename             "someobject"
+                  ::cache                 "root.search({\"text\":\"a\"}).0"}
+                 [::cache "root.search({\"text\":\"a\"}).1"]
+                 {:someobject/stringField "this is another string"
+                  :__typename             "someobject"
+                  ::cache                 "root.search({\"text\":\"a\"}).1"}}}
 
      :nested-union
      {:query    (d/parse-document
@@ -742,7 +770,7 @@
                        }
                        ... on otherobject {
                          id
-                         name
+                         stringField
                          __typename
                        }
                      }
@@ -763,6 +791,39 @@
                   :object/stringField "this is a string"
                   :object/numberField 3
                   :__typename         "object"}}}
+
+     :nested-union-no-id
+     {:query    (d/parse-document
+                  "{
+                     id
+                     stringField
+                     unionObj {
+                       ... on someobject {
+                         numberField
+                         stringField
+                         __typename
+                       }
+                       ... on someotherobject {
+                         stringField
+                         __typename
+                       }
+                     }
+                   }")
+      :result   {:id          "a"
+                 :stringField "this is a string"
+                 :unionObj    {:stringField "this is a string"
+                               :numberField 3
+                               :__typename  "someobject"}}
+      :entities {[::cache "root"]
+                 {:id          "a"
+                  :stringField "this is a string"
+                  :unionObj    [::cache "root.unionObj"]
+                  ::cache      "root"}
+                 [::cache "root.unionObj"]
+                 {:someobject/stringField "this is a string"
+                  :someobject/numberField 3
+                  :__typename             "someobject"
+                  ::cache                 "root.unionObj"}}}
 })
 
 (defn write-test [k]
