@@ -3,10 +3,14 @@
             [artemis.stores.mapgraph.common :refer [get-ref like]]))
 
 (def regular-directives #{"include" "skip"})
-(defn aliased? [selection] (:field-alias selection))
-(defn has-args? [selection] (:arguments selection))
-(defn custom-dirs? [{:keys [directives]}]
-  (some #(not (regular-directives (:directive-name %))) directives))
+(defn aliased? ^boolean [selection]
+  (boolean (:field-alias selection)))
+(defn has-args? ^boolean [selection]
+  (boolean (:arguments selection)))
+(defn type-cond? ^boolean [selection]
+  (boolean (some-> selection :selection-set first :type-condition)))
+(defn custom-dirs? ^boolean [{:keys [directives]}]
+  (boolean (some #(not (regular-directives (:directive-name %))) directives)))
 
 ;; context is a map with 3 keys
 ;; :input-vars - variables given to the operation that field-key is being used in
@@ -60,3 +64,33 @@
           (custom-dirs? selection) (attach-directive-to-key context selection)
           (not (or (has-args? selection) (custom-dirs? selection)))
           keyword))
+
+(defn selection-set
+  "For a selection, checks for a nested selection-set and returns it. Whenever
+  a selection within the selection-set is a type-condition selection (for union
+  types) it grabs the correct selection for the the appropriate type."
+  [sel v]
+  (when-let [sel-set (:selection-set sel)]
+    (reduce (fn [acc sel]
+              (condp #(contains? %2 %1) sel
+                :field-name     (conj acc sel)
+                :type-condition (if (= (:type-name (:type-condition sel)) (:__typename v))
+                                  (into acc (:selection-set sel))
+                                  acc)))
+            []
+            sel-set)))
+
+(defn ref-join-expr
+  "When selection is a union-type selection, resolves the join-expr by looking
+  up the typename. Otherwise, just returns the regular join-expr."
+  [entities join-expr lookup-ref selection]
+  (if-not (type-cond? selection)
+    join-expr
+    (reduce (fn [acc [condition selection]]
+              (if (= (:type-name (:type-condition condition))
+                     (:__typename (get entities lookup-ref)))
+                (reduced (into acc selection))
+                acc))
+            []
+            ;; converting map to tuples for easier access of individual key/val
+            (mapcat identity join-expr))))
