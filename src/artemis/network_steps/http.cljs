@@ -22,7 +22,7 @@
     (http/post
       (:uri this)
       (-> context
-          (select-keys [:with-credentials? :oauth-token :basic-auth :headers])
+          (select-keys [:with-credentials? :oauth-token :basic-auth :headers :query-params])
           (merge {:accept accept
                   params  (payload operation)})))))
 
