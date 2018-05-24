@@ -119,8 +119,11 @@
     {:variables variables
      :options   options}))
 
-(defn- update-store! [client new-store]
-  (update client :store reset! new-store))
+(defn- update-store!
+  ([client new-store]
+   (update-store! client new-store identity))
+  ([client new-store after-fn]
+   (update client :store reset! (after-fn new-store))))
 
 (s/def ::out-chan ::chan)
 (s/def ::fetch-policy #{:local-only :local-first :local-then-remote :remote-only})
@@ -308,6 +311,18 @@
                          `(cljs.core.async/channel)`.
   - `:context`           A map of context to pass along when executing the
                          network chain. Defaults to `{}`.
+  - `:before-write`      A function that gets called before a mutation is
+                         written to the client's store. Will get called with
+                         the current store, the result data, the mutation
+                         document, variables, and a boolean representing
+                         whether or not the write will be an optimistic write.
+                         Should return a result.
+  - `:after-write`       A function that gets called after a mutation is
+                         written to the client's store. Will get called with
+                         the updated store, the result data, the mutation
+                         document, variables, and a boolean representing
+                         whether or not the write was an optimistic write.
+                         Should return a store.
   - `:optimistic-result` A map describing an anticipated/optimistic result.
                          The optimistic result will be put onto the channel
                          before waiting for a successful mutation response."
@@ -316,28 +331,38 @@
    (mutate! client document {}))
   ([client document & args]
    (let [{:keys [variables options]} (vars-and-opts args)
-         {:keys [out-chan optimistic-result context]
-          :or   {out-chan (async/chan)
-                 context  {}}} options]
-     (when optimistic-result
-       (update-store! client (write @(:store client)
-                                    {:data optimistic-result}
-                                    document
-                                    variables)))
-     (async/put! out-chan
-                 {:data           optimistic-result
-                  :variables      variables
-                  :in-flight?     true
-                  :network-status :fetching})
+         {:keys [out-chan before-write after-write optimistic-result context]
+          :or   {before-write  #(second %&)
+                 after-write   #(first %&)
+                 out-chan      (async/chan)
+                 context       {}}} options]
+     (let [result  (when optimistic-result
+                     (before-write (store client) optimistic-result document variables true))
+           message (result->message {:data result})]
+       (when optimistic-result
+         (update-store! client
+                        (write @(:store client)
+                               message
+                               document
+                               variables)
+                        #(after-write % result document variables true)))
+       (async/put! out-chan
+                   (assoc message
+                          :variables      variables
+                          :in-flight?     true
+                          :network-status :fetching)))
      (go (let [result  (<! (exec (:network-chain client)
                                  {:document  document
                                   :variables variables}
                                  context))
+               result  (before-write (store client) result document variables false)
                message (result->message result)]
-           (update-store! client (write @(:store client)
-                                        message
-                                        document
-                                        variables))
+           (update-store! client
+                          (write @(:store client)
+                                 message
+                                 document
+                                 variables)
+                          #(after-write % result document variables false))
            (async/put! out-chan
                        (assoc message
                               :variables      variables

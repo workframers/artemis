@@ -67,3 +67,47 @@
                (is (= @counter 2))
                (is closed?)
                (done))))))))
+
+(deftest mutate-hooks-no-optimistic
+  (async done
+    (let [actions     (atom [])
+          hook-fn     (fn [x f] #(do (swap! actions conj x) (f %&)))
+          store-write (fn [this _ _ _] (swap! actions conj :write) this)]
+      (with-client
+       {:store-write-fn store-write}
+       (let [result-chan (core/mutate! client tu/mutation-doc variables
+                                       :before-write (hook-fn :before second)
+                                       :after-write  (hook-fn :after first))]
+         (go (let [_ (<! result-chan)]
+               (is (empty? @actions)))
+
+             ;; Putting a fake remote result
+             (put-result! {:data {:createReview {:stars 4 :commentary "This is a great movie!"}}})
+
+             (let [_ (<! result-chan)]
+               (is (= @actions [:before :write :after]))
+               (done))))))))
+
+(deftest mutate-hooks-optimistic
+  (async done
+    (let [actions     (atom [])
+          hook-fn     (fn [x f] #(do (swap! actions conj x) (f %&)))
+          store-write (fn [this _ _ _] (swap! actions conj :write) this)]
+      (with-client
+       {:store-write-fn store-write}
+       (let [result-chan (core/mutate! client tu/mutation-doc variables
+                                       :optimistic-result
+                                       {:createReview
+                                        {:stars 4
+                                        :commentary "This is a great movie!"}}
+                                       :before-write (hook-fn :before second)
+                                       :after-write  (hook-fn :after first))]
+         (go (let [_ (<! result-chan)]
+               (is (= @actions [:before :write :after])))
+
+             ;; Putting a fake remote result
+             (put-result! {:data {:createReview {:stars 4 :commentary "This is a great movie!"}}})
+
+             (let [_ (<! result-chan)]
+               (is (= @actions [:before :write :after :before :write :after]))
+               (done))))))))
