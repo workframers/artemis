@@ -1,14 +1,11 @@
 (ns artemis.document
   #?(:cljs (:require-macros artemis.document))
   (:require [clojure.spec.alpha :as s]
-            #?@(:clj [[alumbra.parser :as a]
-                      [alumbra.errors :as ae]
+            #?@(:clj [[graphql-builder.core :as gql]
+                      [graphql-clj.parser :as parser]
+                      [graphql-clj.box :as box]
+                      [instaparse.core :as insta]
                       [clojure.walk :as w]])))
-
-(defn- remove-namespace [x]
-  (if (and (keyword? x) (namespace x))
-    (keyword (name x))
-    x))
 
 (defrecord
   ^{:added "0.1.0"}
@@ -46,10 +43,19 @@
                     :source ::ast))
 
 (defn ast
-  "Returns the alumbra-parsed AST for a GraphQL document."
+  "Returns the parsed AST for a GraphQL document."
   {:added "0.1.0"}
   [document]
   (:ast document))
+
+#?(:clj
+   (defn parse [source]
+     (w/prewalk
+       (fn [x]
+         (cond-> x
+           ;; add typename here
+           :always box/box->val))
+       (parser/parse source))))
 
 #?(:clj
    (defmacro parse-document
@@ -57,10 +63,9 @@
      original source string and an AST representation of the source in EDN."
      {:added "0.1.0"}
      [source]
-     (let [parsed (a/parse-document source)]
-       (if (contains? parsed :alumbra/parser-errors)
-         (throw (ex-info "Unable to parse source."
-                         {:reason  ::invalid-source
-                          :errors  (vec (ae/explain-data parsed source))}))
-         (let [ast (w/postwalk remove-namespace parsed)]
-           (Document. ast source))))))
+     (let [parsed (parse source)]
+       (if (insta/failure? parsed)
+         (let [{:keys [error loc]} (parser/parse-error parsed)]
+           (throw (ex-info error {:reason   ::invalid-source
+                                  :location loc})))
+         (Document. parsed source)))))

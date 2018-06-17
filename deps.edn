@@ -1,7 +1,6 @@
 {:paths ["src"]
- :deps  {org.clojure/clojure       {:mvn/version "1.9.0"}
-         org.clojure/clojurescript {:mvn/version "1.9.946"}
-         cljs-http                 {:mvn/version "0.1.44"}
-         haslett                   {:mvn/version "0.1.2"}
-         alumbra/parser            {:mvn/version "0.1.7"}
-         alumbra/errors            {:mvn/version "0.1.1"}}}
+ :deps  {org.clojure/clojure             {:mvn/version "1.9.0"}
+         org.clojure/clojurescript       {:mvn/version "1.9.946"}
+         cljs-http                       {:mvn/version "0.1.44"}
+         haslett                         {:mvn/version "0.1.2"}
+         floatingpointio/graphql-builder {:mvn/version "0.1.6"}}}

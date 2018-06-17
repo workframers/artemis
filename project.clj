@@ -5,12 +5,11 @@
                 :url  "http://www.apache.org/licenses/LICENSE-2.0"}
 
   :dependencies
-  [[org.clojure/clojure       "1.9.0"]
-   [org.clojure/clojurescript "1.9.946"]
-   [cljs-http                 "0.1.44"]
-   [haslett                   "0.1.2"]
-   [alumbra/parser            "0.1.7"]
-   [alumbra/errors            "0.1.1"]]
+  [[org.clojure/clojure             "1.9.0"]
+   [org.clojure/clojurescript       "1.9.946"]
+   [cljs-http                       "0.1.44"]
+   [haslett                         "0.1.2"]
+   [floatingpointio/graphql-builder "0.1.6"]]
 
   :plugins
   [[lein-cljsbuild "1.1.7"]]

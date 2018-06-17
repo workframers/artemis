@@ -127,7 +127,7 @@
             (keyword? expr)
             (if-let [[_ val] (find entity expr)]
               (if (aliased? selection)
-                (assoc result (-> selection :field-alias keyword) val)
+                (assoc result (-> selection :name keyword) val)
                 (assoc result expr val))
               result)
 
@@ -148,9 +148,9 @@
 
 (defn read-from-cache
   [document input-vars store]
-  (let [first-op (-> document :ast :operations first)
-        context {:input-vars input-vars                     ; variables given to this op
-                 :vars-info (:variables first-op)           ; info about the kinds of variables supported by this op
+  (let [first-op (-> document :ast :operation-definitions first)
+        context {:input-vars input-vars                      ; variables given to this op
+                 :vars-info (:variable-definitions first-op) ; info about the kinds of variables supported by this op
                  :store store}
         pull-pattern (->gql-pull-pattern first-op)]
     (pull store pull-pattern [(:cache-key store) "root"] context)))

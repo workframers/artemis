@@ -88,7 +88,7 @@
 (defn format-for-cache [{:keys [store] :as context} selection-set result & [stub]]
   "Converts a graphql response into the format that the mapgraph store needs for normalization and querying"
   (let [stub (or stub "root")
-        by-alias-or-name (fn [sel] (if (:field-alias sel) (:field-alias sel) (:field-name sel)))
+        by-alias-or-name (fn [sel] (if (aliased? sel) (:name sel) (:field-name sel)))
         selections (group-by by-alias-or-name selection-set)
         typename (:__typename result)]
     (if (map? result)
@@ -124,8 +124,8 @@
 (defn write-to-cache
   "Writes a graphql response to the mapgraph store"
   [document input-vars result store]
-  (let [first-op (-> document :ast :operations first)
+  (let [first-op (-> document :ast :operation-definitions first)
         context {:input-vars input-vars                     ; variables given to this op
-                 :vars-info (:variables first-op)           ; info about the kinds of variables supported by this op
+                 :vars-info (:variable-definitions first-op)           ; info about the kinds of variables supported by this op
                  :store store}]
     (add store (format-for-cache context (:selection-set first-op) result))))

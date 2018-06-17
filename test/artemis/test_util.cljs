@@ -40,9 +40,10 @@
     }"))
 
 (def subscription-doc
+  ;; Todo fix this
   (parse-document
-    "subscription($id: ID!) {
-      messageAdded(channelId:$id) {
+    "query MessageAdded($id: ID!) {
+      messageAdded(channelId: $id) {
         id
         text
       }
