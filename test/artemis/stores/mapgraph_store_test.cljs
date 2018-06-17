@@ -162,7 +162,6 @@
                      stringField
                      numberField
                      nullField
-                     __typename
                    }
                  }")
     :result   {:id          "abcd"
@@ -199,7 +198,6 @@
                      stringField
                      numberField
                      nullField
-                     __typename
                    }
                  }")
     :result   {:id          "abcd"
@@ -235,7 +233,6 @@
                      stringField
                      numberField
                      nullField
-                     __typename
                    }
                  }")
     :result   {:id          "abcd"
@@ -272,7 +269,6 @@
                      stringField
                      numberField
                      nullField
-                     __typename
                    }
                  }")
     :result   {:id          "abcd"
@@ -322,7 +318,6 @@
                      stringField
                      numberField
                      nullField
-                     __typename
                    }
                  }")
     :result   {:id          "abcd"
@@ -364,7 +359,6 @@
                        numberField
                        stringField
                      }
-                     __typename
                    }
                  }")
     :result   {:id          "abcd"
@@ -453,7 +447,6 @@
                      stringField
                      numberField
                      nullField
-                     __typename
                    }
                  }")
     :result   {:id          "abcd"
@@ -500,7 +493,6 @@
                      stringField
                      numberField
                      nullField
-                     __typename
                    }
                  }")
     :result   {:id          "abcd"
@@ -578,12 +570,10 @@
                    object1 {
                      id
                      stringField
-                     __typename
                    }
                    object2 {
                      id
                      numberField
-                     __typename
                    }
                  }")
     :result   {:id      "a"
@@ -615,9 +605,7 @@
                      obj {
                        id
                        stringField
-                       __typename
                      }
-                     __typename
                    }
                    array2 {
                      id
@@ -625,9 +613,7 @@
                      obj {
                        id
                        numberField
-                       __typename
                      }
-                     __typename
                    }
                  }")
     :result   {:id     "a"
@@ -677,7 +663,6 @@
                      stringField
                      numberField
                      nullField
-                     __typename
                    }
                  }")
     :result   {:id          "abcd"
@@ -700,12 +685,10 @@
                        ... on object {
                          id
                          stringField
-                         __typename
                        }
                        ... on otherobject {
                          id
                          numberField
-                         __typename
                        }
                      }
                    }")
@@ -734,7 +717,6 @@
                      search(text: \"a\") {
                        ... on someobject {
                          stringField
-                         __typename
                        }
                      }
                    }")
@@ -766,12 +748,10 @@
                          id
                          numberField
                          stringField
-                         __typename
                        }
                        ... on otherobject {
                          id
                          stringField
-                         __typename
                        }
                      }
                    }")
@@ -801,11 +781,9 @@
                        ... on someobject {
                          numberField
                          stringField
-                         __typename
                        }
                        ... on someotherobject {
                          stringField
-                         __typename
                        }
                      }
                    }")

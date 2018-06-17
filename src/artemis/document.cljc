@@ -48,14 +48,36 @@
   [document]
   (:ast document))
 
-#?(:clj
+#?(:clj (do
+   (def type-name-node
+     {:node-type  :field
+      :field-name "__typename"})
+
+   (defn selection-set? [x]
+     (and (vector? x)
+          (= :selection-set (first x))))
+
+   (defn type-nameable? [selection-set]
+     (reduce (fn [flag x]
+               (or (and (= (:node-type x) :field)
+                        (not (contains? x :arguments)))
+                   (reduced false)))
+             false
+             selection-set))
+
+   (defn cons-type-name [[_ selection-set]]
+     [:selection-set
+      (if-not (type-nameable? selection-set)
+        selection-set
+        (vec (cons type-name-node selection-set)))])
+
    (defn parse [source]
      (w/prewalk
        (fn [x]
          (cond-> x
-           ;; add typename here
-           :always box/box->val))
-       (parser/parse source))))
+           :always            box/box->val
+           (selection-set? x) cons-type-name))
+       (parser/parse source)))))
 
 #?(:clj
    (defmacro parse-document

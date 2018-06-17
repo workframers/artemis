@@ -29,7 +29,6 @@ Now that we have `vdoc`, we can do this:
 ;;   (parse-document
 ;;    "query planetInfo($id:ID!) {
 ;;      planet(id:$id) {
-;;        __typename
 ;;        id
 ;;        name
 ;;      }
@@ -43,7 +42,7 @@ Now that we have `vdoc`, we can do this:
                            :variable/type :ID!}]
         :venia/queries   [{:query/data [:planet
                                         {:id :$id}
-                                        [:meta/typename :id :name]]}]}))
+                                        [:id :name]]}]}))
 ```
 You can use a similar approach if you'd like to use `.graphql` files, whether
 stand-alone or through something like
@@ -63,7 +62,6 @@ section, we would do something like:
   (parse-document
    "mutation addPlanet($name:String!) {
       addPlanet(name:$name) {
-        __typename
         id
         name
       }
