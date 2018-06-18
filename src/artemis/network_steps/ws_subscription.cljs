@@ -3,7 +3,6 @@
   (:require [haslett.client :as ws]
             [haslett.format :as fmt]
             [artemis.core :as a]
-            [artemis.document :as d]
             [artemis.result :as ar]
             [artemis.network-steps.protocols :as np]
             [cljs.core.async :as async]))
@@ -11,10 +10,6 @@
 (defonce ws-conn     (atom nil))
 (defonce live-subs   (atom {}))
 (defonce subs-buffer (atom {}))
-
-(defn- payload [{:keys [document variables]}]
-  {:query     (d/source document)
-   :variables variables})
 
 (defn log-dupe! [msg]
   (when ^boolean goog.DEBUG
@@ -24,12 +19,12 @@
   (when s
     (-> s (.replace #"_" "-") keyword)))
 
-(def ^:private ws-txf
+(defn- ws-txf [unpack]
   (map
    (fn [{:keys [type payload]}]
      (let [message    (if (= type "error")
                         (ar/with-errors {:data nil} [payload])
-                        {:data (:data payload)})
+                        {:data (unpack (:data payload))})
            ws-status  (if @ws-conn :connected :disconnected)]
        (assoc message :ws-status  ws-status
                       :ws-message (kebab-keyword type))))))
@@ -41,8 +36,11 @@
         (go (async/>! (:sink stream)
                       {:id      (:id chan+id)
                        :type    "start"
-                       :payload (payload operation)})
-            (async/pipeline 1 (:chan chan+id) ws-txf (:source stream) false) ; false only when reconnect false?
+                       :payload (:graphql operation)})
+            (async/pipeline 1
+                            (:chan chan+id)
+                            (ws-txf (:unpack operation))
+                            (:source stream) false) ; false only when reconnect false?
             ))))
 
 (defrecord

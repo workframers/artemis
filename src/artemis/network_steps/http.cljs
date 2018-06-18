@@ -1,14 +1,9 @@
 (ns artemis.network-steps.http
   (:require-macros [cljs.core.async.macros :refer [go]])
   (:require [cljs-http.client :as http]
-            [artemis.document :as d]
             [artemis.result :as ar]
             [artemis.network-steps.protocols :as np]
             [cljs.core.async :as async]))
-
-(defn- payload [{:keys [document variables]}]
-  {:query     (d/source document)
-   :variables variables})
 
 (defn- post-operation [this operation {:keys [interchange-format]
                                        :or   {interchange-format :json}
@@ -24,7 +19,7 @@
       (-> context
           (select-keys [:with-credentials? :oauth-token :basic-auth :headers :query-params])
           (merge {:accept accept
-                  params  (payload operation)})))))
+                  params  (:graphql operation)})))))
 
 (defrecord
   ^{:added "0.1.0"}
@@ -38,7 +33,8 @@
                   net-error   (when (not= error-code :no-error)
                                 {:message (str "Network error " error-code)
                                  :response res})
-                  data        (:data body)
+                  unpack      (:unpack operation)
+                  data        (unpack (:data body))
                   errors      (into (:errors body) net-error)]
               (ar/with-errors {:data data} errors))))
       (catch :default e

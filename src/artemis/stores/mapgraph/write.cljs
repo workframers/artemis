@@ -124,7 +124,7 @@
 (defn write-to-cache
   "Writes a graphql response to the mapgraph store"
   [document input-vars result store]
-  (let [first-op (-> document :ast :operation-definitions first)
+  (let [first-op (-> document :operation-definitions first)
         context {:input-vars input-vars                     ; variables given to this op
                  :vars-info (:variable-definitions first-op)           ; info about the kinds of variables supported by this op
                  :store store}]

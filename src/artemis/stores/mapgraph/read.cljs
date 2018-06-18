@@ -115,9 +115,8 @@
 
   ~~ For devs working on the internals ~~
      If you pass in a gql-context, the keys and refs in the pull pattern
-     must all be gql selections from the generated alumbra ast.
-     There's no support for handling pull patterns that are combination
-     of selections and normal keys"
+     must all be gql selections from the generated ast. There's no support for
+     handling pull patterns that are combination of selections and normal keys"
   [{:keys [entities] :as store} pattern lookup-ref & [gql-context]]
   (when-let [entity (get entities lookup-ref)]
     (reduce
@@ -148,7 +147,7 @@
 
 (defn read-from-cache
   [document input-vars store]
-  (let [first-op (-> document :ast :operation-definitions first)
+  (let [first-op (-> document :operation-definitions first)
         context {:input-vars input-vars                      ; variables given to this op
                  :vars-info (:variable-definitions first-op) ; info about the kinds of variables supported by this op
                  :store store}

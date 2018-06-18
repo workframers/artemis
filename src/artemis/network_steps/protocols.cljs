@@ -9,8 +9,9 @@
     "Establishes a step in the network execution chain.
 
     - `operation` A map representing the operation to be executed when the end
-                  of the chain is reached. Should contain `:document`,
-                  `:variables`, and `:name` keys.
+                  of the chain is reached. Contains a `:graphql` key holding
+                  the information to construct a request and an `:unpack` key,
+                  which is a function that allows you to unpack the response.
     - `context`   A map that can contain arbitrary context to be passed through
                   the execution chain.
 
@@ -24,6 +25,7 @@
     ```
     (defn post-chan [url params]
       ;; do http post here and return a core.async channel when ready
+      ;; make sure to unpack the response before putting it onto the channel
       )
 
     (def http
@@ -37,7 +39,7 @@
       (reify
         GQLNetworkStep
         (-exec [_ operation context]
-          (logger/log operation)
+          (logger/log (:graphql operation))
           (artemis.core/exec next-step operation context))))
 
     (def network-chain (-> http logger))
