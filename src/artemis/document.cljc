@@ -20,7 +20,10 @@
         :args (s/alt
                 :arity-1 (s/cat :document ::document)
                 :arity-2 (s/cat :document  ::document
-                                :variables map?))
+                                :variables map?)
+                :arity-3 (s/cat :document          ::document
+                                :variables         map?
+                                :inline-fragments? boolean?))
         :ret  ::operation)
 
 (defn operation
@@ -31,11 +34,13 @@
   mapping."
   {:added "0.1.0"}
   ([document]
-   (operation document {}))
+   (operation document {} false))
   ([document variables]
+   (operation document variables false))
+  ([document variables inline-fragments?]
    (if (single-operation? document)
      (let [op (-> document :operation-definitions first :operation-type)]
-       ((get-in (gql/query-map document)
+       ((get-in (gql/query-map document {:inline-fragments inline-fragments?})
                 [(keyword (:type op))
                  (keyword (->kebab-case (:name op)))])
         variables))

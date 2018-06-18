@@ -35,3 +35,8 @@
     (vector? type-coll) (vec s)
     (set? type-coll) (into (empty type-coll) s)  ; handles sorted-set
     :else s))
+
+(defn fragments-map [document]
+  (->> (:fragment-definitions document)
+       (map #(vector (:name %) %))
+       (into {})))

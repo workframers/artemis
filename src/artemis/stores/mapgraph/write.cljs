@@ -1,5 +1,5 @@
 (ns artemis.stores.mapgraph.write
-  (:require [artemis.stores.mapgraph.common :refer [get-ref like map-keys map-vals]]
+  (:require [artemis.stores.mapgraph.common :refer [get-ref like map-keys map-vals fragments-map]]
             [artemis.stores.mapgraph.selections :as sel :refer [has-args? custom-dirs? aliased?]]))
 
 (defn- into!
@@ -85,11 +85,17 @@
                   (transient ent-m)
                   (mapcat #(normalize-entities % id-attrs) entities)))))))
 
-(defn format-for-cache [{:keys [store] :as context} selection-set result & [stub]]
+(defn- name-or-field-name [sel]
+  (if (aliased? sel)
+    (:name sel)
+    (:field-name sel)))
+
+(defn format-for-cache [{:keys [store] :as context} selection-set result fragments & [stub]]
   "Converts a graphql response into the format that the mapgraph store needs for normalization and querying"
   (let [stub (or stub "root")
-        by-alias-or-name (fn [sel] (if (aliased? sel) (:name sel) (:field-name sel)))
-        selections (group-by by-alias-or-name selection-set)
+        selections (->> selection-set
+                        (sel/resolve-fragments fragments)
+                        (group-by name-or-field-name))
         typename (:__typename result)]
     (if (map? result)
       (let [formatted
@@ -111,9 +117,9 @@
                                   nsed-key (str stub "." (name sel-key))
                                   new-v (if (sequential? v)
                                           (mapv (fn [result idx]
-                                                  (format-for-cache context (sel/selection-set sel result) result (str nsed-key "." idx)))
+                                                  (format-for-cache context (sel/selection-set sel result) result fragments (str nsed-key "." idx)))
                                                 v (range))
-                                          (format-for-cache context (sel/selection-set sel v) v nsed-key))]
+                                          (format-for-cache context (sel/selection-set sel v) v fragments nsed-key))]
                               (vector new-k new-v)))
                           result))]
         (if (not (get-ref formatted (:id-attrs store)))
@@ -125,7 +131,8 @@
   "Writes a graphql response to the mapgraph store"
   [document input-vars result store]
   (let [first-op (-> document :operation-definitions first)
+        fragments (fragments-map document)
         context {:input-vars input-vars                     ; variables given to this op
                  :vars-info (:variable-definitions first-op)           ; info about the kinds of variables supported by this op
                  :store store}]
-    (add store (format-for-cache context (:selection-set first-op) result))))
+    (add store (format-for-cache context (:selection-set first-op) result fragments))))

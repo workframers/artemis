@@ -60,6 +60,17 @@
           (not (or (has-args? selection) (custom-dirs? selection)))
           keyword))
 
+(defn resolve-fragments
+  "Given a map of fragments, inline the values for a fragment if they appear
+  within the selection set."
+  [fragments sel-set]
+  (reduce (fn [acc sel]
+            (if (keyword-identical? (:node-type sel) :fragment-spread)
+              (into acc (get-in fragments [(:name sel) :selection-set] []))
+              (conj acc sel)))
+          []
+          sel-set))
+
 (defn selection-set
   "For a selection, checks for a nested selection-set and returns it. Whenever
   a selection within the selection-set is a type-condition selection (for union
@@ -67,11 +78,11 @@
   [sel v]
   (when-let [sel-set (:selection-set sel)]
     (reduce (fn [acc sel]
-              (condp #(contains? %2 %1) sel
-                :field-name     (conj acc sel)
-                :type-condition (if (= (:type-name (:type-condition sel)) (:__typename v))
-                                  (into acc (:selection-set sel))
-                                  acc)))
+              (case (:node-type sel)
+                :field           (conj acc sel)
+                :inline-fragment (if (= (:type-name (:type-condition sel)) (:__typename v))
+                                   (into acc (:selection-set sel))
+                                   acc)))
             []
             sel-set)))
 

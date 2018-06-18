@@ -1,7 +1,7 @@
 (ns artemis.stores.mapgraph.read
   (:require [clojure.set :refer [rename-keys]]
-            [artemis.stores.mapgraph.common :refer [like get-ref map-keys]]
-            [artemis.stores.mapgraph.selections :refer [field-key aliased? ref-join-expr]]))
+            [artemis.stores.mapgraph.common :refer [like get-ref map-keys fragments-map]]
+            [artemis.stores.mapgraph.selections :as sel :refer [field-key aliased? ref-join-expr]]))
 
 (defn- entity?
   "Returns true if map is an entity according to the db schema. An
@@ -32,13 +32,14 @@
       (map-keys #(if (keyword? %) (-> % name keyword) %))
       (rename-keys {(field-key selection context) (-> selection :field-name keyword)})))
 
-(defn- ->gql-pull-pattern [{:keys [selection-set] :as field-or-op}]
+(defn- ->gql-pull-pattern [{:keys [selection-set] :as field-or-op} fragments]
   "Returns a pull pattern comprised of selections instead of keywords"
-  (mapv (fn [sel]
-          (let [sel (assoc sel ::selection true)]
-            (if (:selection-set sel)
-              {sel (->gql-pull-pattern sel)} sel)))
-        selection-set))
+  (->> selection-set
+       (sel/resolve-fragments fragments)
+       (mapv (fn [sel]
+               (let [sel (assoc sel ::selection true)]
+                 (if (:selection-set sel)
+                   {sel (->gql-pull-pattern sel fragments)} sel))))))
 
 (defn- selection? [m] (::selection m))
 
@@ -148,8 +149,9 @@
 (defn read-from-cache
   [document input-vars store]
   (let [first-op (-> document :operation-definitions first)
+        fragments (fragments-map document)
         context {:input-vars input-vars                      ; variables given to this op
                  :vars-info (:variable-definitions first-op) ; info about the kinds of variables supported by this op
                  :store store}
-        pull-pattern (->gql-pull-pattern first-op)]
+        pull-pattern (->gql-pull-pattern first-op fragments)]
     (pull store pull-pattern [(:cache-key store) "root"] context)))

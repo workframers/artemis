@@ -802,6 +802,26 @@
                   :someobject/numberField 3
                   :__typename             "someobject"
                   ::cache                 "root.unionObj"}}}
+
+   :fragments
+   {:query    (d/parse-document
+                "query SomeQuery {
+                   id
+                   ...OtherFields
+                 }
+
+                 fragment OtherFields on object {
+                   stringField
+                   numberField
+                 }")
+    :result   {:id          "abcd"
+               :stringField "this is a string"
+               :numberField 3}
+    :entities {[::cache "root"]
+               {:id          "abcd"
+                :stringField "this is a string"
+                :numberField 3
+                ::cache      "root"}}}
 })
 
 (defn write-test [k]
