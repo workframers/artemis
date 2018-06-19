@@ -6,6 +6,7 @@
             #?@(:clj [[graphql-clj.parser :as parser]
                       [graphql-clj.box :as box]
                       [instaparse.core :as insta]
+                      [clojure.string :as string]
                       [clojure.walk :as w]])))
 
 (defn- ^boolean single-operation?
@@ -103,7 +104,10 @@
      (cond-> x
        :always            box/box->val
        (selection-set? x) cons-type-name))
-   (parser/parse source)))
+   (parser/parse
+    ;; This is a hack because graphql-clj doesn't suppport parsing the
+    ;; subscription operation type
+    (string/replace source #"subscription" "query"))))
 
 (defmacro parse-document
  "Parses a GraphQL query string and emits an AST representation of the source
