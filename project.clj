@@ -9,7 +9,6 @@
    [org.clojure/clojurescript       "1.9.946"]
    [cljs-http                       "0.1.44"]
    [haslett                         "0.1.2"]
-   [com.bhauman/rebel-readline "0.1.3"]
    [floatingpointio/graphql-builder "0.1.6"]]
 
   :plugins
