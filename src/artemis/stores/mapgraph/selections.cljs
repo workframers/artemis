@@ -4,33 +4,28 @@
 
 (def regular-directives #{"include" "skip"})
 (defn aliased? ^boolean [selection]
-  (boolean (:field-alias selection)))
+  (and (keyword-identical? :field (:node-type selection))
+       (not (nil? (:name selection)))))
 (defn has-args? ^boolean [selection]
   (boolean (:arguments selection)))
 (defn type-cond? ^boolean [selection]
   (boolean (some-> selection :selection-set first :type-condition)))
 (defn custom-dirs? ^boolean [{:keys [directives]}]
-  (boolean (some #(not (regular-directives (:directive-name %))) directives)))
+  (boolean (some #(not (regular-directives (:name %))) directives)))
 
 ;; context is a map with 3 keys
 ;; :input-vars - variables given to the operation that field-key is being used in
 ;; :vars-info - info about the kinds of variables supported by that operation
 ;; :store - the MapGraphStore
 
-(defn default-val-from-var [var-info]
-  (let [default-val (:default-value var-info)]
-    (get default-val (:value-type default-val))))
-
 (defn val-from-arg [{:keys [input-vars vars-info] :as context} arg]
-  (let [type (-> arg :argument-value :value-type)
-        var-name (-> arg :argument-value :variable-name)]
-    (if (= type :variable)
-      (or (get input-vars (keyword var-name))               ; get value from input vars
-          (-> (group-by :variable-name vars-info)           ; or try to get the default value
-              (get var-name)
-              first
-              default-val-from-var))
-      (get (:argument-value arg) type))))
+  (if-let [var-name (:variable-name arg)]
+    (or (get input-vars (keyword var-name))               ; get value from input vars
+        (-> (group-by :variable-name vars-info)           ; or try to get the default value
+            (get var-name)
+            first
+            :default-value))
+    (:value arg)))
 
 (defn arg-snippet [context arg]
   "Given a argument for a selection, returns a string used in generating the field key"
@@ -43,13 +38,13 @@
   (let [snippets (map (partial arg-snippet context) arguments)]
     (str key "({" (string/join "," snippets) "})")))
 
-(defn directive-snippet [context {:keys [directive-name arguments] :as directive}]
+(defn directive-snippet [context {:keys [name arguments] :as directive}]
   "Given a directive for a selection, returns a string used in generating the field key"
   (let [arg-snippets (map (partial arg-snippet context) arguments)
         args-string (if-not (empty? arg-snippets)
                       (str "({" (string/join "," arg-snippets) "})")
                       "")]
-    (str "@" directive-name args-string)))
+    (str "@" name args-string)))
 
 (defn attach-directive-to-key [key context {:keys [directives]}]
   "Returns an updated field key with the directive string snippet appended"
@@ -65,6 +60,19 @@
           (not (or (has-args? selection) (custom-dirs? selection)))
           keyword))
 
+(defn resolve-fragments
+  "Given a map of fragments, inline the values for a fragment if they appear
+  within the selection set."
+  [fragments sel-set]
+  (reduce (fn [acc sel]
+            (if (keyword-identical? (:node-type sel) :fragment-spread)
+              (->> (get-in fragments [(:name sel) :selection-set] [])
+                   (resolve-fragments fragments)
+                   (into acc))
+              (conj acc sel)))
+          []
+          sel-set))
+
 (defn selection-set
   "For a selection, checks for a nested selection-set and returns it. Whenever
   a selection within the selection-set is a type-condition selection (for union
@@ -72,11 +80,11 @@
   [sel v]
   (when-let [sel-set (:selection-set sel)]
     (reduce (fn [acc sel]
-              (condp #(contains? %2 %1) sel
-                :field-name     (conj acc sel)
-                :type-condition (if (= (:type-name (:type-condition sel)) (:__typename v))
-                                  (into acc (:selection-set sel))
-                                  acc)))
+              (if (keyword-identical? (:node-type sel) :inline-fragment)
+                (if (= (:type-name (:type-condition sel)) (:__typename v))
+                  (into acc (:selection-set sel))
+                  acc)
+                (conj acc sel)))
             []
             sel-set)))
 

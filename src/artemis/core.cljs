@@ -64,16 +64,14 @@
   [x]
   (instance? Client x))
 
-(s/def ::document d/doc?)
 (s/def ::variables (s/nilable map?))
 (s/def ::name string?)
-(s/def ::operation (s/keys :req-un [::document] :opt-un [::variables ::name]))
 (s/def ::context map?)
 (s/def ::chan (s/and #(satisfies? WritePort %) #(satisfies? ReadPort %)))
 
 (s/fdef exec
         :args (s/cat :network-chain ::network-chain
-                     :operation     ::operation
+                     :operation     ::d/operation
                      :context       ::context)
         :ret  ::chan)
 
@@ -89,7 +87,7 @@
 
 (s/fdef read
         :args (s/cat :store           ::store
-                     :document        ::document
+                     :document        ::d/document
                      :variables       ::variables
                      :return-partial? ::return-partial?)
         :ret  (s/nilable ::result))
@@ -103,7 +101,7 @@
 (s/fdef write
         :args (s/cat :store           ::store
                      :data            ::data ; Figure out the right names for all of these things
-                     :document        ::document
+                     :document        ::d/document
                      :variables       ::variables)
         :ret  ::store)
 
@@ -128,9 +126,9 @@
 (s/fdef query!
         :args (s/alt
                :arity-2 (s/cat :client   ::client
-                               :document ::document)
+                               :document ::d/document)
                :arity-n (s/cat :client    ::client
-                               :document  ::document
+                               :document  ::d/document
                                :variables (s/? map?)
                                :options   (s/keys* :opt-un [::out-chan
                                                             ::fetch-policy
@@ -201,8 +199,7 @@
                             variables
                             (get options :return-partial? false))
          remote-read #(exec (:network-chain client)
-                            {:document  document
-                             :variables variables}
+                            (d/operation document variables)
                             context)]
      (case fetch-policy
        :local-only
@@ -287,9 +284,9 @@
 (s/fdef mutate!
         :args (s/alt
                :arity-2 (s/cat :client   ::client
-                               :document ::document)
+                               :document ::d/document)
                :arity-n (s/cat :client    ::client
-                               :document  ::document
+                               :document  ::d/document
                                :variables (s/? map?)
                                :options   (s/keys* :opt-un [::out-chan
                                                             ::optimistic-result
@@ -330,8 +327,7 @@
                   :in-flight?     true
                   :network-status :fetching})
      (go (let [result  (<! (exec (:network-chain client)
-                                 {:document  document
-                                  :variables variables}
+                                 (d/operation document variables)
                                  context))
                message (result->message result)]
            (update-store! client (write @(:store client)
@@ -359,9 +355,9 @@
 (s/fdef subscribe!
         :args (s/alt
                :arity-2 (s/cat :client   ::client
-                               :document ::document)
+                               :document ::d/document)
                :arity-n (s/cat :client    ::client
-                               :document  ::document
+                               :document  ::d/document
                                :variables (s/? map?)
                                :options   (s/keys* :opt-un [::out-chan
                                                             ::ws-id
@@ -398,8 +394,7 @@
                  ws-id    (probably-unique-id)
                  context  {}}} options]
      (let [results-chan    (exec (:network-chain client)
-                                 {:document  document
-                                  :variables variables}
+                                 (d/operation document variables)
                                  (assoc context :ws-sub-id ws-id))
            assoc-variables #(assoc % :variables variables)
            msg-txf         (map (comp assoc-variables result->message))]

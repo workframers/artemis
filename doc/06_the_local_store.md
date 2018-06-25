@@ -64,11 +64,11 @@ normalize on. We use the `:id-attrs` option to do so:
 
 `:id-attrs` is a set of namespaced keywords formatted
 `:<typename>/<primary-key-field>`. The typename is the value for a particular
-entities `__typename` in a GraphQL query. That means that when using the
-Mapgraph store, in order to get the benefits of normalization, we need to first
-set the keyword we want to normalize on, and then include the `__typename`
-field when querying for those entities. The planet example we've been using so
-far would look like this:
+entity's `__typename` in a GraphQL query. That means that when using the
+Mapgraph store, in order to get the benefits of normalization, we need to set
+the keyword we want to normalize on and include the `__typename` field when
+querying for those entities. The planet example we've been using so far would
+look like this:
 
 ```clojure
 (require '[artemis.core :as a]
@@ -89,16 +89,15 @@ far would look like this:
    }"))
 ```
 
-_We recommend creating a function that will automatically add `__typename` to
-your query selection sets._
+Adding `__typename` to every selection set would get tedious. Artemis, however,
+automatically includes the `__typename` field when querying, so we'll just
+have to tell it what typenames we want to normalize on in order to correctly
+store our results in our Mapgraph store. With that done, we can switch our
+fetch policy to take advantage of this.
 
-With that done, we're now correctly storing our results in our Mapgraph store.
-That means, we can switch our fetch policy to take advantage of this.
-
-Let's move back to our application code and first set planet ID to a primary
-key and change our query so that we're including `__typename` and setting the
-fetch policy is set to `:local-then-remote`. For reference, here's all the
-code:
+Let's move back to our application code and set planet ID to a primary key,
+then set the fetch policy to `:local-then-remote`. For reference, here's all
+the code:
 
 ```clojure
 (ns my-app.view
@@ -116,12 +115,10 @@ code:
 (def client (a/create-client :network-chain net-chain
                              :store mg-store)) ;; Add the store here!
 
-;; Add our __typename here!
 (def planet-info
   (parse-document
    "query planetInfo($id:ID!) {
      planet(id:$id) {
-       __typename
        id
        name
       }
