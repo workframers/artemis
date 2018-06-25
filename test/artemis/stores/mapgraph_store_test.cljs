@@ -822,6 +822,60 @@
                 :stringField "this is a string"
                 :numberField 3
                 ::cache      "root"}}}
+
+   :nested-fragments
+   {:query    (d/parse-document
+                "query SomeQuery {
+                   id
+                   nestedObj {
+                     id
+                     ...OtherFields
+                   }
+                 }
+
+                 fragment OtherFields on object {
+                   stringField
+                   numberField
+                 }")
+    :result   {:id        "abcd"
+               :nestedObj {:id          "abcde"
+                           :stringField "this is a string"
+                           :numberField 3
+                           :__typename  "object"}}
+    :entities {[::cache "root"]
+               {:id        "abcd"
+                :nestedObj [:object/id "abcde"]
+                ::cache    "root"}
+               [:object/id "abcde"]
+               {:object/id          "abcde"
+                :object/stringField "this is a string"
+                :object/numberField 3
+                :__typename         "object"}}}
+
+   :chained-fragments
+   {:query    (d/parse-document
+                "query SomeQuery {
+                   id
+                   ...OtherFields
+                 }
+
+                 fragment OtherFields on object {
+                   stringField
+                   ...EvenOtherFields
+                 }
+
+                fragment EvenOtherFields on object {
+                   numberField
+                }
+                ")
+    :result   {:id          "abcd"
+               :stringField "this is a string"
+               :numberField 3}
+    :entities {[::cache "root"]
+               {:id          "abcd"
+                :stringField "this is a string"
+                :numberField 3
+                ::cache      "root"}}}
 })
 
 (defn write-test [k]

@@ -66,7 +66,9 @@
   [fragments sel-set]
   (reduce (fn [acc sel]
             (if (keyword-identical? (:node-type sel) :fragment-spread)
-              (into acc (get-in fragments [(:name sel) :selection-set] []))
+              (->> (get-in fragments [(:name sel) :selection-set] [])
+                   (resolve-fragments fragments)
+                   (into acc))
               (conj acc sel)))
           []
           sel-set))
@@ -78,11 +80,11 @@
   [sel v]
   (when-let [sel-set (:selection-set sel)]
     (reduce (fn [acc sel]
-              (case (:node-type sel)
-                :field           (conj acc sel)
-                :inline-fragment (if (= (:type-name (:type-condition sel)) (:__typename v))
-                                   (into acc (:selection-set sel))
-                                   acc)))
+              (if (keyword-identical? (:node-type sel) :inline-fragment)
+                (if (= (:type-name (:type-condition sel)) (:__typename v))
+                  (into acc (:selection-set sel))
+                  acc)
+                (conj acc sel)))
             []
             sel-set)))
 
