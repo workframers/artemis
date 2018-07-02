@@ -21,9 +21,9 @@
         :args (s/alt
                 :arity-1 (s/cat :document ::document)
                 :arity-2 (s/cat :document  ::document
-                                :variables map?)
+                                :variables (s/nilable map?))
                 :arity-3 (s/cat :document          ::document
-                                :variables         map?
+                                :variables         (s/nilable map?)
                                 :inline-fragments? boolean?))
         :ret  ::operation)
 
@@ -40,13 +40,17 @@
    (operation document variables false))
   ([document variables inline-fragments?]
    (if (single-operation? document)
-     (let [op (-> document :operation-definitions first :operation-type)]
-       ((get-in (gql/query-map document {:inline-fragments inline-fragments?})
-                [(keyword (:type op))
-                 (keyword (->kebab-case (:name op)))])
-        variables))
+     (let [op    (-> document :operation-definitions first :operation-type)
+           ops   (get (gql/query-map document {:inline-fragments inline-fragments?})
+                      (keyword (:type op)))
+           op-fn (get ops (some-> (:name op) ->kebab-case keyword)
+                          ;; If unnamed operation, we'll just grab it out by
+                          ;; position 1, which is always going to be the case
+                          (-> ops first second))]
+       (op-fn variables))
      (let [op-map (::operation-mapping (meta document) {})]
-       ((gql/composed-query document op-map) variables)))))
+       ((gql/composed-query document op-map)
+        variables)))))
 
 (s/fdef compose
         :args (s/cat :doc  ::document
