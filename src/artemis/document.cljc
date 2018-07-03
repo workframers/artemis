@@ -78,6 +78,90 @@
   [doc mapping]
   (vary-meta doc assoc ::operation-mapping mapping))
 
+(defn- resolve-fragments
+  "Given a map of fragments, inline the values for a fragment if they appear
+  within the selection set."
+  [fragments sel-set]
+  (if (empty? fragments)
+    sel-set
+    (reduce (fn [acc sel]
+              (if (= (:node-type sel) :fragment-spread)
+                (->> (get-in fragments [(:name sel) :selection-set] [])
+                     (resolve-fragments fragments)
+                     (into acc))
+                (conj acc sel)))
+            []
+            sel-set)))
+
+(defn- update-definitions [fragments definitions]
+  (map #(assoc % :selection-set (resolve-fragments fragments (:selection-set %)))
+       definitions))
+
+(s/fdef inline-fragments
+        :args (s/cat :doc ::document)
+        :ret  ::document)
+
+(defn inline-fragments
+  "Given a parsed document that includes fragments, inline the values of the
+  fragments directly into the query selection set(s)."
+  {:added "0.1.0"}
+  [doc]
+  (let [fragments (->> (:fragment-definitions doc)
+                       (map #(vector (:name %) %))
+                       (into {}))]
+    (if (empty? (:operation-definitions doc))
+      (update doc :fragment-definitions #(update-definitions fragments %))
+      (-> doc
+          (update :operation-definitions #(update-definitions fragments %))
+          (dissoc :fragment-definitions)))))
+
+(defn- selection-of-data [sel-set root drop-unmatched?]
+  (reduce (fn [acc sel]
+            (case (:node-type sel)
+              :field
+              (let [kw     (some-> (:name sel (:field-name sel)) keyword)
+                    gotten (kw root)]
+                (if (and (nil? gotten) drop-unmatched?)
+                  acc
+                  (assoc acc
+                         kw
+                         (if-let [sel-set (:selection-set sel)]
+                           (selection-of-data sel-set gotten drop-unmatched?)
+                           gotten))))
+              :inline-fragment
+              (merge acc
+                     (selection-of-data (:selection-set sel)
+                                        root
+                                        drop-unmatched?))
+
+              acc))
+          {}
+          sel-set))
+
+(s/fdef select
+        :args (s/alt
+                :arity-2 (s/cat :document ::document
+                                :data     map?)
+                :arity-3 (s/cat :document        ::document
+                                :data            map?
+                                :drop-unmatched? boolean?))
+        :ret  map?)
+
+(defn select
+  "Given a query or fragment document and a map of data, select only the
+  information in data that the document lists in its selection set."
+  {:added "0.1.0"}
+  ([doc data]
+   (select doc data false))
+  ([doc data drop-unmatched?]
+   (let [sel-set (-> (some #(when-not (nil? %) %)
+                           ((juxt :fragment-definitions
+                                  :operation-definitions)
+                            (inline-fragments doc)))
+                     first
+                     :selection-set)]
+     (selection-of-data sel-set data drop-unmatched?))))
+
 #?(:clj (do
 
 (def ^:private type-name-node
