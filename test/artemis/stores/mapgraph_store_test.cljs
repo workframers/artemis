@@ -902,3 +902,63 @@
 (deftest test-cache-reading
   (doseq [test-query (keys test-queries)]
     (read-test test-query)))
+
+(def test-fragments
+  {:basic
+   {:fragment    (d/parse-document
+                   "fragment A on object {
+                      stringField
+                    }")
+    :entities    {[:object/id "abcde"]
+                  {:id          "abcde"
+                   :stringField "this is a string"
+                   :numberField 3
+                   :nullField   nil
+                   ::cache      "root"}}
+    :entity      [:object/id "abcde"]
+    :write-data  {:stringField "this is a different string"}
+    :read-result {:stringField "this is a string"}}
+
+   :multiple-fields
+   {:fragment    (d/parse-document
+                   "fragment A on object {
+                      numberField
+                      stringField
+                    }")
+    :entities    {[:object/id "abcde"]
+                  {:object/id          "abcde"
+                   :object/stringField "this is a string"
+                   :object/numberField 3}}
+    :entity      [:object/id "abcde"]
+    :write-data  {:stringField "this is a different string"
+                  :numberField 4}
+    :read-result {:stringField "this is a string"
+                  :numberField 3}}})
+
+(defn write-fragment-test [k]
+  (testing (str "testing normalized cache persistence for fragment type: " k)
+    (let [{:keys [fragment entity write-data entities]} (get test-fragments k)
+          initial-store (create-store :id-attrs #{:object/id :nested-object/id :otherobject/id}
+                                      :entities entities
+                                      :cache-key ::cache)
+          old-ent (get (:entities initial-store) entity)
+          new-store (a/write-fragment initial-store write-data fragment entity)
+          new-ent (get (:entities new-store) entity)]
+      (is (= new-ent (merge old-ent new-ent))))))
+
+(deftest test-cache-fragment-persistence
+  (doseq [test-fragment (keys test-fragments)]
+    (write-fragment-test test-fragment)))
+
+(defn read-fragment-test [k]
+  (testing (str "testing normalized cache reading for fragment type: " k)
+    (let [{:keys [fragment entity entities read-result]} (get test-fragments k)
+          store (create-store :id-attrs #{:object/id :nested-object/id :otherobject/id}
+                              :entities entities
+                              :cache-key ::cache)
+          response (a/read-fragment store fragment entity false)]
+      (is (= {:data read-result} response)))))
+
+(deftest test-cache-fragment-reading
+  (doseq [test-fragment (keys test-fragments)]
+    (read-fragment-test test-fragment)))
