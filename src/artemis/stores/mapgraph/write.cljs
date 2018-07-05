@@ -1,5 +1,6 @@
 (ns artemis.stores.mapgraph.write
   (:require [artemis.stores.mapgraph.common :refer [get-ref like map-keys map-vals fragments-map]]
+            [clojure.pprint :refer [pprint]]
             [artemis.stores.mapgraph.selections :as sel :refer [has-args? custom-dirs? aliased?]]))
 
 (defn- into!
@@ -103,15 +104,16 @@
                             (let [sel (->> k name (get selections) first)
                                   sel-key (sel/field-key sel context)
                                   _ (when (nil? sel-key)
-                                      (throw (ex-info (str "Key `" k "` found in response, but not in query.")
-                                                      {:reason ::key-not-in-query
+                                      (throw (ex-info (str "Key `" k "` found in response, but not in document.")
+                                                      {:reason ::key-not-in-document
                                                        ::atribute k
                                                        ::value v})))
                                   new-k (if (and typename
-                                                 (not= stub "root") ; don't namespace fields at root level
-                                                 (not= :__typename sel-key) ; don't namespace typename
-                                                 (not (or (has-args? sel) ; don't namespace fields that require a custom string key
-                                                          (custom-dirs? sel))))
+                                                 (or apply-typename?
+                                                     (and (not= stub "root") ; don't namespace fields at root level
+                                                          (not= :__typename sel-key) ; don't namespace typename
+                                                          (not (or (has-args? sel) ; don't namespace fields that require a custom string key
+                                                                   (custom-dirs? sel))))))
                                           (keyword typename sel-key)
                                           sel-key)
                                   nsed-key (str stub "." (name sel-key))
@@ -136,3 +138,16 @@
                  :vars-info (:variable-definitions first-op)           ; info about the kinds of variables supported by this op
                  :store store}]
     (add store (format-for-cache context (:selection-set first-op) result fragments))))
+
+(defn write-to-entity
+  [document result [ref-key ref-val] store]
+  (let [first-frag (-> document :fragment-definitions first)
+        fragments (fragments-map document)
+        context {:store store :apply-typename? true}
+        formatted (-> {ref-key ref-val}
+                      (merge (format-for-cache context
+                                               (:selection-set first-frag)
+                                               result
+                                               fragments))
+                      (dissoc (:cache-key store)))]
+    (add store formatted)))

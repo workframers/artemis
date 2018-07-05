@@ -84,6 +84,7 @@
 (s/def ::data any?)
 (s/def ::return-partial? boolean?)
 (s/def ::result (s/keys :req-un [::data] :opt-un [::return-partial?]))
+(s/def ::entity-ref any?)
 
 (s/fdef read
         :args (s/cat :store           ::store
@@ -98,11 +99,24 @@
   [store document variables return-partial?]
   (sp/-read store document variables return-partial?))
 
-(s/fdef write
+(s/fdef read-fragment
         :args (s/cat :store           ::store
-                     :data            ::data ; Figure out the right names for all of these things
                      :document        ::d/document
-                     :variables       ::variables)
+                     :entity-ref      ::entity-ref
+                     :return-partial? ::return-partial?)
+        :ret  (s/nilable ::result))
+
+(defn read-fragment
+  "Calls `artemis.stores.protocols/-read-fragment` on a given store."
+  {:added "0.1.0"}
+  [store document entity-ref return-partial?]
+  (sp/-read-fragment store document entity-ref return-partial?))
+
+(s/fdef write
+        :args (s/cat :store     ::store
+                     :data      ::data ; Figure out the right names for all of these things
+                     :document  ::d/document
+                     :variables ::variables)
         :ret  ::store)
 
 (defn write
@@ -110,6 +124,19 @@
   {:added "0.1.0"}
   [store data document variables]
   (sp/-write store data document variables))
+
+(s/fdef write-fragment
+        :args (s/cat :store      ::store
+                     :data       ::data
+                     :document   ::d/document
+                     :entity-ref ::entity-ref)
+        :ret  ::store)
+
+(defn write-fragment
+  "Calls `artemis.stores.protocols/-write-fragment` on a given store."
+  {:added "0.1.0"}
+  [store data document variables]
+  (sp/-write-fragment store data document variables))
 
 (defn- vars-and-opts [args]
   (let [variables   (when (map? (first args)) (first args))

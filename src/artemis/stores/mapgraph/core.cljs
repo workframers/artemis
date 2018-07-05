@@ -1,7 +1,7 @@
 (ns artemis.stores.mapgraph.core
   (:require [artemis.stores.protocols :as sp]
-            [artemis.stores.mapgraph.write :refer [write-to-cache]]
-            [artemis.stores.mapgraph.read :refer [read-from-cache]]))
+            [artemis.stores.mapgraph.write :refer [write-to-cache write-to-entity]]
+            [artemis.stores.mapgraph.read :refer [read-from-cache read-from-entity]]))
 
 (defrecord
   ^{:added "0.1.0"
@@ -17,9 +17,15 @@
   sp/GQLStore
   (-read [this document variables return-partial?]         ;todo: implement return-partial
     {:data (not-empty (read-from-cache document variables this))})
+  (-read-fragment [this document entity-ref return-partial?]
+    {:data (not-empty (read-from-entity document entity-ref this))})
   (-write [this data document variables]
     (if-let [gql-response (:data data)]
       (write-to-cache document variables gql-response this)
+      this))
+  (-write-fragment [this data document entity-ref]
+    (if (seq data)
+      (write-to-entity document data entity-ref this)
       this)))
 
 (defn store?  ;todo: figure out how to use this function in other namespaces without circular deps issues

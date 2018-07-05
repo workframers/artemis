@@ -155,3 +155,11 @@
                  :store store}
         pull-pattern (->gql-pull-pattern first-op fragments)]
     (pull store pull-pattern [(:cache-key store) "root"] context)))
+
+(defn read-from-entity
+  [document ent-ref store]
+  (let [first-frag (-> document :fragment-definitions first)
+        fragments (fragments-map document)
+        context {:input-vars {} :vars-info nil :store store}
+        pull-pattern (->gql-pull-pattern first-frag fragments)]
+    (pull store pull-pattern ent-ref context)))
