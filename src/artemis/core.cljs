@@ -320,7 +320,9 @@
                                :variables (s/? map?)
                                :options   (s/keys* :opt-un [::out-chan
                                                             ::optimistic-result
-                                                            ::context])))
+                                                            ::context
+                                                            ::before-write
+                                                            ::after-write])))
         :ret  ::out-chan)
 
 (defn mutate!
@@ -336,17 +338,17 @@
   - `:context`           A map of context to pass along when executing the
                          network chain. Defaults to `{}`.
   - `:before-write`      A function that gets called before a mutation is
-                         written to the client's store. Will get called with
-                         the current store, the result data, the mutation
-                         document, variables, and a boolean representing
-                         whether or not the write will be an optimistic write.
-                         Should return a result.
+                         written to the client's store. Will get called with a
+                         map containing the current store, the result data, the
+                         mutation document, variables, and a boolean
+                         representing whether or not the write will be an
+                         optimistic write. Should return a result.
   - `:after-write`       A function that gets called after a mutation is
                          written to the client's store. Will get called with
-                         the updated store, the result data, the mutation
-                         document, variables, and a boolean representing
-                         whether or not the write was an optimistic write.
-                         Should return a store.
+                         a map containing the updated store, the result data,
+                         the mutation document, variables, and a boolean
+                         representing whether or not the write was an
+                         optimistic write. Should return a store.
   - `:optimistic-result` A map describing an anticipated/optimistic result.
                          The optimistic result will be put onto the channel
                          before waiting for a successful mutation response."
@@ -356,12 +358,16 @@
   ([client document & args]
    (let [{:keys [variables options]} (vars-and-opts args)
          {:keys [out-chan before-write after-write optimistic-result context]
-          :or   {before-write  #(second %&)
-                 after-write   #(first %&)
+          :or   {before-write  #(:result %)
+                 after-write   #(:store %)
                  out-chan      (async/chan)
                  context       {}}} options]
      (let [result  (when optimistic-result
-                     (before-write (store client) optimistic-result document variables true))
+                     (before-write {:store       (store client)
+                                    :result      optimistic-result
+                                    :document    document
+                                    :variables   variables
+                                    :optimistic? true}))
            message (result->message {:data result})]
        (when optimistic-result
          (update-store! client
@@ -369,7 +375,11 @@
                                message
                                document
                                variables)
-                        #(after-write % result document variables true)))
+                        #(after-write {:store       %
+                                       :result      result
+                                       :document    document
+                                       :variables   variables
+                                       :optimistic? true})))
        (async/put! out-chan
                    (assoc message
                           :variables      variables
@@ -378,14 +388,22 @@
      (go (let [result  (<! (exec (:network-chain client)
                                  (d/operation document variables)
                                  context))
-               result  (before-write (store client) result document variables false)
+               result  (before-write {:store       (store client)
+                                      :result      result
+                                      :document    document
+                                      :variables   variables
+                                      :optimistic? false})
                message (result->message result)]
            (update-store! client
                           (write @(:store client)
                                  message
                                  document
                                  variables)
-                          #(after-write % result document variables false))
+                          #(after-write {:store       %
+                                         :result      result
+                                         :document    document
+                                         :variables   variables
+                                         :optimistic? false}))
            (async/put! out-chan
                        (assoc message
                               :variables      variables
