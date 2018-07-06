@@ -87,29 +87,29 @@
 (s/def ::entity-ref any?)
 
 (s/fdef read
-        :args (s/cat :store           ::store
-                     :document        ::d/document
-                     :variables       ::variables
-                     :return-partial? ::return-partial?)
+        :args (s/cat :store     ::store
+                     :document  ::d/document
+                     :variables ::variables
+                     :options   (s/keys* :opt-un [::return-partial?]))
         :ret  (s/nilable ::result))
 
 (defn read
   "Calls `artemis.stores.protocols/-read` on a given store."
   {:added "0.1.0"}
-  [store document variables return-partial?]
+  [store document variables & {:keys [return-partial?] :or {return-partial? false}}]
   (sp/-read store document variables return-partial?))
 
 (s/fdef read-fragment
-        :args (s/cat :store           ::store
-                     :document        ::d/document
-                     :entity-ref      ::entity-ref
-                     :return-partial? ::return-partial?)
+        :args (s/cat :store      ::store
+                     :document   ::d/document
+                     :entity-ref ::entity-ref
+                     :options    (s/keys* :opt-un [::return-partial?]))
         :ret  (s/nilable ::result))
 
 (defn read-fragment
   "Calls `artemis.stores.protocols/-read-fragment` on a given store."
   {:added "0.1.0"}
-  [store document entity-ref return-partial?]
+  [store document entity-ref & {:keys [return-partial?] :or {return-partial? false}}]
   (sp/-read-fragment store document entity-ref return-partial?))
 
 (s/fdef write
@@ -227,7 +227,7 @@
          local-read  #(read @(:store client)
                             document
                             variables
-                            (get options :return-partial? false))
+                            :return-partial? (get options :return-partial? false))
          remote-read #(exec (:network-chain client)
                             (d/operation document variables)
                             context)]

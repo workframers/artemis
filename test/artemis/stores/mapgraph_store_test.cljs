@@ -896,7 +896,7 @@
           store (create-store :id-attrs #{:object/id :nested-object/id}
                               :entities entities
                               :cache-key ::cache)
-          response (a/read store query input-vars false)]
+          response (a/read store query input-vars)]
       (is (= {:data result} response)))))
 
 (deftest test-cache-reading
@@ -956,7 +956,7 @@
           store (create-store :id-attrs #{:object/id :nested-object/id :otherobject/id}
                               :entities entities
                               :cache-key ::cache)
-          response (a/read-fragment store fragment entity false)]
+          response (a/read-fragment store fragment entity)]
       (is (= {:data read-result} response)))))
 
 (deftest test-cache-fragment-reading
