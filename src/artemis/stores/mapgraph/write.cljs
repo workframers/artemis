@@ -13,26 +13,26 @@
   [m k f x]
   (assoc! m k (f (get m k) x)))
 
-(defn- ref-and-val [id-attrs val]
-  {:ref (get-ref val id-attrs) :val val})
+(defn- ref-and-val [store val]
+  {:ref (get-ref val store) :val val})
 
 (defn- normalize-entities
   "Returns a sequence of normalized entities starting with map m."
-  [m id-attrs]
+  [m store]
   (lazy-seq
     (loop [sub-entities (transient [])
            normalized (transient {})
            kvs (seq m)]
       (if-let [[k v] (first kvs)]
         (if (map? v)
-          (if-let [r (get-ref v id-attrs)]
+          (if-let [r (get-ref v store)]
             ;; v is a single entity
             (recur (conj! sub-entities v)
                    (assoc! normalized k r)
                    (rest kvs))
             ;; v is a map, not an entity
             (let [values (vals v)]
-              (if-let [refs (seq (keep #(get-ref % id-attrs) values))]
+              (if-let [refs (seq (keep #(get-ref % store) values))]
                 ;; v is a map whose values are entities
                 (do (when-not (= (count refs) (count v))
                       (throw (ex-info "Map values may not mix entities and non-entities"
@@ -49,7 +49,7 @@
                        (rest kvs)))))
           ;; v is not a map
           (if (coll? v)
-            (let [refs-and-vals (map (partial ref-and-val id-attrs) v)
+            (let [refs-and-vals (map (partial ref-and-val store) v)
                   new-v (map #(if-let [ref (:ref %)] ref (:val %)) refs-and-vals)
                   refs (->> refs-and-vals
                             (remove #(-> % :ref nil?))
@@ -62,29 +62,22 @@
                    (assoc! normalized k v)
                    (rest kvs))))
         (cons (persistent! normalized)
-              (mapcat #(normalize-entities % id-attrs)
+              (mapcat #(normalize-entities % store)
                       (persistent! sub-entities)))))))
-
-(defn add-id-attr
-  "Adds unique identity attributes to the db schema. Returns updated
-  db."
-  [store & id-keys]
-  (update store :id-attrs into id-keys))
 
 (defn add
   "Returns updated store with generic normalized entities merged in."
   [store & entities]
-  (let [id-attrs (:id-attrs store)]
-    (update
-      store
-      :entities
-      (fn transient-entities-update [ent-m]
-        (persistent!
-          (reduce (fn [m e]
-                    (let [ref (get-ref e id-attrs)]
-                      (update! m ref merge e)))
-                  (transient ent-m)
-                  (mapcat #(normalize-entities % id-attrs) entities)))))))
+  (update
+    store
+    :entities
+    (fn transient-entities-update [ent-m]
+      (persistent!
+        (reduce (fn [m e]
+                  (let [ref (get-ref e store)]
+                    (update! m (:artemis.mapgraph/ref ref) merge e)))
+                (transient ent-m)
+                (mapcat #(normalize-entities % store) entities))))))
 
 (defn- name-or-field-name [sel]
   (if (aliased? sel)
@@ -124,7 +117,7 @@
                                           (format-for-cache context (sel/selection-set sel v) v fragments nsed-key))]
                               (vector new-k new-v)))
                           result))]
-        (if (not (get-ref formatted (:id-attrs store)))
+        (if (not (get-ref formatted store))
           (assoc formatted (:cache-key store) stub)
           formatted))
       result)))
