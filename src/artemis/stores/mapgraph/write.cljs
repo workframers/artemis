@@ -89,8 +89,7 @@
   (let [stub (or stub "root")
         selections (->> selection-set
                         (sel/resolve-fragments fragments)
-                        (group-by name-or-field-name))
-        typename (:__typename result)]
+                        (group-by name-or-field-name))]
     (if (map? result)
       (let [formatted
             (into {} (map (fn [[k v]]
@@ -101,23 +100,15 @@
                                                       {:reason ::key-not-in-document
                                                        ::atribute k
                                                        ::value v})))
-                                  new-k (if (and typename
-                                                 (or apply-typename?
-                                                     (and (not= stub "root") ; don't namespace fields at root level
-                                                          (not= :__typename sel-key) ; don't namespace typename
-                                                          (not (or (has-args? sel) ; don't namespace fields that require a custom string key
-                                                                   (custom-dirs? sel))))))
-                                          (keyword typename sel-key)
-                                          sel-key)
                                   nsed-key (str stub "." (name sel-key))
                                   new-v (if (sequential? v)
                                           (mapv (fn [result idx]
                                                   (format-for-cache context (sel/selection-set sel result) result fragments (str nsed-key "." idx)))
                                                 v (range))
                                           (format-for-cache context (sel/selection-set sel v) v fragments nsed-key))]
-                              (vector new-k new-v)))
+                              (vector sel-key new-v)))
                           result))]
-        (if (not (get-ref formatted store))
+        (if (or (= stub "root") (not (get-ref formatted store)))
           (assoc formatted (:cache-key store) stub)
           formatted))
       result)))
@@ -136,7 +127,7 @@
   [document result [ref-key ref-val] store]
   (let [first-frag (-> document :fragment-definitions first)
         fragments (fragments-map document)
-        context {:store store :apply-typename? true}
+        context {:store store}
         formatted (-> {ref-key ref-val}
                       (merge (format-for-cache context
                                                (:selection-set first-frag)

@@ -165,50 +165,24 @@
 
 #?(:clj (do
 
-(def ^:private type-name-node
- {:node-type  :field
-  :field-name "__typename"})
-
-(defn- selection-set? [x]
- (and (vector? x)
-      (= :selection-set (first x))))
-
-(defn- type-nameable? [selection-set]
- (reduce (fn [flag x]
-           (or (and (= (:node-type x) :field)
-                    (not (contains? x :arguments)))
-               (reduced false)))
-         false
-         selection-set))
-
-(defn- cons-type-name [[_ selection-set]]
- [:selection-set
-  (if-not (type-nameable? selection-set)
-    selection-set
-    (vec (cons type-name-node selection-set)))])
-
 (defn parse [source]
- (w/prewalk
-   (fn [x]
-     (cond-> x
-       :always            box/box->val
-       (selection-set? x) cons-type-name))
-   (parser/parse
-    ;; This is a hack because graphql-clj doesn't suppport parsing the
-    ;; subscription operation type
-    (string/replace source #"subscription" "query"))))
+  (w/prewalk box/box->val
+             (parser/parse
+               ;; This is a hack because graphql-clj doesn't suppport parsing the
+               ;; subscription operation type
+               (string/replace source #"subscription" "query"))))
 
 (defmacro parse-document
- "Parses a GraphQL query string and emits an AST representation of the source
- in EDN."
- {:added "0.1.0"}
- [source]
- (let [parsed (parse source)]
-   (if (insta/failure? parsed)
-     (let [{:keys [error loc]} (parser/parse-error parsed)]
-       (throw (ex-info error {:reason   ::invalid-source
-                              :location loc})))
-     parsed)))
+  "Parses a GraphQL query string and emits an AST representation of the source
+  in EDN."
+  {:added "0.1.0"}
+  [source]
+  (let [parsed (parse source)]
+    (if (insta/failure? parsed)
+      (let [{:keys [error loc]} (parser/parse-error parsed)]
+        (throw (ex-info error {:reason   ::invalid-source
+                               :location loc})))
+      parsed)))
 
 (defn- read-file [file]
   (slurp
@@ -223,4 +197,6 @@
   [& files]
   (let [document (string/join "\n" (map read-file files))]
     `(artemis.document/parse-document ~document)))
+
+;; end CLJ
 ))
