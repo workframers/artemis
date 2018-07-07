@@ -4,9 +4,8 @@
             [artemis.stores.mapgraph.selections :as sel :refer [field-key aliased? ref-join-expr]]))
 
 (defn- entity?
-  "Returns true if map is an entity according to the db schema. An
-  entity is a map from keywords to values with exactly one identifier
-  key."
+  "Returns true if map is an entity. An entity is a map from keywords to values
+  with an existing id according to the db id-fn."
   [{:keys [id-fn]} map]
   (and (map? map)
        (not (sorted? map))
@@ -14,7 +13,7 @@
        (some? (id-fn map))))
 
 (defn- ref?
-  "Returns true if ref is a lookup ref according to the db schema."
+  "Returns true if ref is a lookup ref."
   [store ref]
   (boolean (:artemis.mapgraph/ref ref)))
 
