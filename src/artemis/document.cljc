@@ -6,6 +6,7 @@
             #?@(:clj [[graphql-clj.parser :as parser]
                       [graphql-clj.box :as box]
                       [instaparse.core :as insta]
+                      [clojure.java.io :as io]
                       [clojure.string :as string]
                       [clojure.walk :as w]])))
 
@@ -208,4 +209,18 @@
        (throw (ex-info error {:reason   ::invalid-source
                               :location loc})))
      parsed)))
+
+(defn- read-file [file]
+  (slurp
+   (condp instance? file
+     java.io.File file
+     java.net.URL file
+     (or (io/resource file) file))))
+
+(defmacro parse-document-files
+  "Parses GraphQL files and emits an AST representation of the source in EDN."
+  {:added "0.1.0"}
+  [& files]
+  (let [document (string/join "\n" (map read-file files))]
+    `(artemis.document/parse-document ~document)))
 ))
