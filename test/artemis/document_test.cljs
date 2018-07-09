@@ -8,6 +8,11 @@
   (let [doc (d/parse-document "{ a b c }")]
     (is (some? doc))))
 
+(deftest parse-document-files
+  (let [doc (d/parse-document-files "test-query-a.graphql"
+                                    "test-query-b.graphql")]
+    (is (some? doc))))
+
 (deftest operation
   (let [doc (d/parse-document "{ a b c }")
         op  (d/operation doc)]
