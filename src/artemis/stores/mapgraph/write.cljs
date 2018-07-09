@@ -91,7 +91,7 @@
     (:name sel)
     (:field-name sel)))
 
-(defn format-for-cache [{:keys [store] :as context} selection-set result fragments & [stub]]
+(defn format-for-cache [{:keys [store apply-typename?] :as context} selection-set result fragments & [stub]]
   "Converts a graphql response into the format that the mapgraph store needs for normalization and querying"
   (let [stub (or stub "root")
         selections (->> selection-set

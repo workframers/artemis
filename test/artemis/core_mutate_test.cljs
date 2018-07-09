@@ -71,13 +71,13 @@
 (deftest mutate-hooks-no-optimistic
   (async done
     (let [actions     (atom [])
-          hook-fn     (fn [x f] #(do (swap! actions conj x) (f %&)))
+          hook-fn     (fn [x f] #(do (swap! actions conj x) (f %)))
           store-write (fn [this _ _ _] (swap! actions conj :write) this)]
       (with-client
        {:store-write-fn store-write}
        (let [result-chan (core/mutate! client tu/mutation-doc variables
-                                       :before-write (hook-fn :before second)
-                                       :after-write  (hook-fn :after first))]
+                                       :before-write (hook-fn :before :result)
+                                       :after-write  (hook-fn :after :store))]
          (go (let [_ (<! result-chan)]
                (is (empty? @actions)))
 
@@ -91,7 +91,7 @@
 (deftest mutate-hooks-optimistic
   (async done
     (let [actions     (atom [])
-          hook-fn     (fn [x f] #(do (swap! actions conj x) (f %&)))
+          hook-fn     (fn [x f] #(do (swap! actions conj x) (f %)))
           store-write (fn [this _ _ _] (swap! actions conj :write) this)]
       (with-client
        {:store-write-fn store-write}
@@ -100,8 +100,8 @@
                                        {:createReview
                                         {:stars 4
                                         :commentary "This is a great movie!"}}
-                                       :before-write (hook-fn :before second)
-                                       :after-write  (hook-fn :after first))]
+                                       :before-write (hook-fn :before :result)
+                                       :after-write  (hook-fn :after :store))]
          (go (let [_ (<! result-chan)]
                (is (= @actions [:before :write :after])))
 

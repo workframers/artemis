@@ -7,9 +7,13 @@
   :dependencies
   [[org.clojure/clojure             "1.9.0"]
    [org.clojure/clojurescript       "1.9.946"]
+   [org.clojure/core.async          "0.4.474"]
    [cljs-http                       "0.1.44"]
    [haslett                         "0.1.2"]
    [floatingpointio/graphql-builder "0.1.6"]]
+
+  :exclusions
+  [org.clojure/core.async]
 
   :plugins
   [[lein-cljsbuild "1.1.7"]]
