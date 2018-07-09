@@ -21,10 +21,9 @@
   [[lein-cljsbuild "1.1.7"]]
 
   :aliases
-  {"test"        ["test-jvm"]
-   "test-chrome" ["with-profile" "test" "doo" "chrome" "test" "once"]
-   "test-jvm"    ["with-profile" "test" "doo" "rhino" "test" "once"]
-   "example"     ["with-profile" "+examples" "run" "-m" "clojure.main" "script/repl.clj" "--example"]}
+  {"test"      ["with-profile" "test" "doo" "chromium-no-sandbox" "test" "once"]
+   "test-auto" ["with-profile" "test" "doo" "chrome" "test" "auto"]
+   "example"   ["with-profile" "+examples" "run" "-m" "clojure.main" "script/repl.clj" "--example"]}
 
   :clean-targets
   ^{:protect false} [:target-path "resources/js"]
@@ -56,16 +55,25 @@
               [[re-frame "0.10.5"]]}
 
    :test {:plugins
-          [[lein-doo "0.1.8"]]
+          [[lein-doo "0.1.10"]]
 
           :dependencies
-          [[org.mozilla/rhino      "1.7.7"]
-           [org.clojure/test.check "0.9.0"]
+          [[org.clojure/test.check "0.9.0"]
            [orchestra              "2017.11.12-1"]]
 
           :doo
-          {:paths {:karma "node_modules/.bin/karma"
-                   :rhino "lein run -m org.mozilla.javascript.tools.shell.Main"}}
+          {:paths {:karma "node_modules/.bin/karma"}
+           :karma {:launchers {:chromium-no-sandbox
+                               {:plugin "karma-chrome-launcher"
+                                :name   "Chromium_no_sandbox"}}
+                   :config    {"customLaunchers"
+                               {"Chromium_no_sandbox"
+                                {"base"  "ChromiumHeadless"
+                                 "flags" ["--no-sandbox"
+                                          "--headless"
+                                          "--disable-gpu"
+                                          "--disable-translate"
+                                          "--disable-extensions"]}}}}}
 
           :cljsbuild
           {:builds
@@ -74,8 +82,9 @@
              ["src" "test"]
 
              :compiler
-             {:output-to     "target/main.js"
-              :output-dir    "target"
-              :main          artemis.test-runner
-              :optimizations :simple
-              :preloads      []}}}}}})
+             {:output-to       "target/main.js"
+              :output-dir      "target"
+              :main            artemis.test-runner
+              :optimizations   :simple
+              :closure-defines {"goog.DEBUG" false}
+              :preloads        []}}}}}})
