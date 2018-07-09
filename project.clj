@@ -10,6 +10,8 @@
    [org.clojure/core.async          "0.4.474"]
    [cljs-http                       "0.1.44"]
    [haslett                         "0.1.2"]
+   [shodan                          "0.4.2"]
+   [diffit                          "1.0.0"]
    [floatingpointio/graphql-builder "0.1.6"]]
 
   :exclusions

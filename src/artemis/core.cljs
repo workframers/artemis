@@ -7,6 +7,7 @@
             [artemis.network-steps.protocols :as np]
             [artemis.document :as d]
             [artemis.result :refer [result->message with-errors]]
+            [artemis.logging :as l]
             [clojure.spec.alpha :as s]
             [cljs.core.async :as async]
             [cljs.core.async.impl.protocols :refer [WritePort ReadPort]]))
@@ -224,13 +225,17 @@
           :or   {out-chan     (async/chan)
                  context      {}
                  fetch-policy :local-only}} options
-         local-read  #(read @(:store client)
+         old-store   @(:store client)
+         local-read  #(read old-store
                             document
                             variables
                             :return-partial? (get options :return-partial? false))
          remote-read #(exec (:network-chain client)
                             (d/operation document variables)
                             context)]
+     (l/log-start! :query document)
+     (l/log-query! document variables fetch-policy)
+     (l/log-store-before! old-store)
      (case fetch-policy
        :local-only
        (let [local-result (local-read)]
@@ -240,6 +245,8 @@
                          (assoc :variables      variables
                                 :in-flight?     false
                                 :network-status :ready)))
+         (l/log-store-local-only! @(:store client))
+         (l/log-end!)
          (async/close! out-chan))
 
        :local-first
@@ -263,8 +270,12 @@
                                                :variables      variables
                                                :in-flight?     false
                                                :network-status :ready))
+                   (l/log-store-after! old-store @(:store client))
+                   (l/log-end!)
                    (async/close! out-chan))))
-           (async/close! out-chan)))
+           (do (l/log-store-after! old-store @(:store client))
+               (l/log-end!)
+               (async/close! out-chan))))
 
        :local-then-remote
        (let [local-result       (local-read)
@@ -285,6 +296,8 @@
                                            :variables      variables
                                            :in-flight?     false
                                            :network-status :ready))
+               (l/log-store-after! old-store @(:store client))
+               (l/log-end!)
                (async/close! out-chan))))
 
        :remote-only
@@ -303,12 +316,15 @@
                                            :variables      variables
                                            :in-flight?     false
                                            :network-status :ready))
+               (l/log-store-after! old-store @(:store client))
+               (l/log-end!)
                (async/close! out-chan))))
 
-       (throw (ex-info (str "Invalid :fetch-policy. Must be one of #{:local-only"
-                            " :local-first :local-then-remote :remote-only}.")
-                       {:reason ::invalid-fetch-policy
-                        :value  fetch-policy})))
+       (do (l/log-end!)
+           (throw (ex-info (str "Invalid :fetch-policy. Must be one of #{:local-only"
+                                " :local-first :local-then-remote :remote-only}.")
+                           {:reason ::invalid-fetch-policy
+                            :value  fetch-policy}))))
      out-chan)))
 
 (s/fdef mutate!
@@ -362,16 +378,20 @@
                  after-write   #(:store %)
                  out-chan      (async/chan)
                  context       {}}} options]
-     (let [result  (when optimistic-result
-                     (before-write {:store       (store client)
-                                    :result      optimistic-result
-                                    :document    document
-                                    :variables   variables
-                                    :optimistic? true}))
-           message (result->message {:data result})]
+     (l/log-start! :mutation document)
+     (l/log-mutation! document variables)
+     (let [result    (when optimistic-result
+                       (before-write {:store       (store client)
+                                      :result      optimistic-result
+                                      :document    document
+                                      :variables   variables
+                                      :optimistic? true}))
+           message   (result->message {:data result})
+           old-store @(:store client)]
        (when optimistic-result
+         (l/log-store-before! old-store true)
          (update-store! client
-                        (write @(:store client)
+                        (write old-store
                                message
                                document
                                variables)
@@ -379,21 +399,24 @@
                                        :result      result
                                        :document    document
                                        :variables   variables
-                                       :optimistic? true})))
+                                       :optimistic? true}))
+         (l/log-store-after! old-store @(:store client)))
        (async/put! out-chan
                    (assoc message
                           :variables      variables
                           :in-flight?     true
                           :network-status :fetching)))
-     (go (let [result  (<! (exec (:network-chain client)
-                                 (d/operation document variables)
-                                 context))
-               result  (before-write {:store       (store client)
-                                      :result      result
-                                      :document    document
-                                      :variables   variables
-                                      :optimistic? false})
-               message (result->message result)]
+     (go (let [old-store @(:store client)
+               result   (<! (exec (:network-chain client)
+                                  (d/operation document variables)
+                                  context))
+               result   (before-write {:store       (store client)
+                                       :result      result
+                                       :document    document
+                                       :variables   variables
+                                       :optimistic? false})
+               message  (result->message result)]
+           (l/log-store-before! old-store)
            (update-store! client
                           (write @(:store client)
                                  message
@@ -409,6 +432,8 @@
                               :variables      variables
                               :in-flight?     false
                               :network-status :ready))
+           (l/log-store-after! old-store @(:store client))
+           (l/log-end!)
            (async/close! out-chan)))
      out-chan)))
 

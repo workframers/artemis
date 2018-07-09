@@ -3,4 +3,6 @@
          org.clojure/clojurescript       {:mvn/version "1.9.946"}
          cljs-http                       {:mvn/version "0.1.44"}
          haslett                         {:mvn/version "0.1.2"}
+         shodan                          {:mvn/version "0.4.2"}
+         diffit                          {:mvn/version "1.0.0"}
          floatingpointio/graphql-builder {:mvn/version "0.1.6"}}}
