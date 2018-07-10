@@ -4,26 +4,18 @@
             [artemis.stores.mapgraph.selections :as sel :refer [field-key aliased? ref-join-expr]]))
 
 (defn- entity?
-  "Returns true if map is an entity according to the db schema. An
-  entity is a map from keywords to values with exactly one identifier
-  key."
-  [store map]
+  "Returns true if map is an entity. An entity is a map from keywords to values
+  with an existing id according to the db id-fn."
+  [{:keys [id-fn]} map]
   (and (map? map)
+       (not (sorted? map))
        (every? keyword? (keys map))
-       (= 1 (count (filter #(contains? map %) (:id-attrs store))))))
-
-(defn- ref-to
-  "Returns a lookup ref for the entity using the schema in db, or nil
-  if not found. The db does not need to contain the entity."
-  [store entity]
-  (get-ref entity (:id-attrs store)))
+       (some? (id-fn map))))
 
 (defn- ref?
-  "Returns true if ref is a lookup ref according to the db schema."
+  "Returns true if ref is a lookup ref."
   [store ref]
-  (and (vector? ref)
-       (= 2 (count ref))
-       (contains? (:id-attrs store) (first ref))))
+  (boolean (:artemis.mapgraph/ref ref)))
 
 (defn- modify-entity-for-gql                                 ;todo: fix how wasteful and unperformant this is
   "Converts the selection's key in entity to what it would be in a normal gql response"
@@ -119,7 +111,7 @@
      must all be gql selections from the generated ast. There's no support for
      handling pull patterns that are combination of selections and normal keys"
   [{:keys [entities] :as store} pattern lookup-ref & [gql-context]]
-  (when-let [entity (get entities lookup-ref)]
+  (when-let [entity (get entities (:artemis.mapgraph/ref lookup-ref))]
     (reduce
       (fn [result expr]
         (let [{:keys [expr entity selection]} (expr-and-entity-for-gql expr entity gql-context)]
@@ -154,7 +146,7 @@
                  :vars-info (:variable-definitions first-op) ; info about the kinds of variables supported by this op
                  :store store}
         pull-pattern (->gql-pull-pattern first-op fragments)]
-    (pull store pull-pattern [(:cache-key store) "root"] context)))
+    (pull store pull-pattern {:artemis.mapgraph/ref "root"} context)))
 
 (defn read-from-entity
   [document ent-ref store]
@@ -162,4 +154,4 @@
         fragments (fragments-map document)
         context {:input-vars {} :vars-info nil :store store}
         pull-pattern (->gql-pull-pattern first-frag fragments)]
-    (pull store pull-pattern ent-ref context)))
+    (pull store pull-pattern {:artemis.mapgraph/ref ent-ref} context)))

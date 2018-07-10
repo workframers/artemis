@@ -3,9 +3,6 @@
 (defn map-vals [m f] (into {} (for [[k v] m] [k (f v)])))
 (defn map-keys [m f] (into {} (for [[k v] m] [(f k) v])))
 
-(defn- seek [pred s]
-  (some #(when (pred %) %) s))
-
 (defn- possible-entity-map?
   "True if x is a non-sorted map. This check prevents errors from
   trying to compare keywords with incompatible keys in sorted maps."
@@ -13,19 +10,10 @@
   (and (map? x)
        (not (sorted? x))))
 
-(defn- find-id-key
-  "Returns the first identifier key found in map, or nil if it is not
-  a valid entity map."
-  [map id-attrs]
-  (when (possible-entity-map? map)
-    (seek #(contains? map %) id-attrs)))
-
-(defn get-ref
-  "Returns a lookup ref for the map, given a collection of identifier
-  keys, or nil if the map does not have an identifier key."
-  [map id-attrs]
-  (when-let [k (find-id-key map id-attrs)]
-    [k (get map k)]))
+(defn get-ref [m {:keys [cache-key id-fn]}]
+  (when (possible-entity-map? m)
+    (when-let [f (or (cache-key m) (id-fn m))]
+      {:artemis.mapgraph/ref f})))
 
 (defn like
   "Returns a collection of the same type as type-coll (vector, set,

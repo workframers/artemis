@@ -69,8 +69,6 @@
                 :selection-set  [{:node-type  :field
                                   :field-name "a"}
                                  {:node-type  :field
-                                  :field-name "__typename"}
-                                 {:node-type  :field
                                   :field-name "b"}
                                  {:node-type  :field
                                   :field-name "c"}]}]}
@@ -93,8 +91,6 @@
                                   :field-name "a"}
                                  {:node-type  :field
                                   :field-name "b"}
-                                 {:node-type  :field
-                                  :field-name "__typename"}
                                  {:node-type  :field
                                   :field-name "c"}]}]}
              (d/inline-fragments doc))))))
@@ -204,8 +200,7 @@
                          :circle   "def"
                          :triangle "ghi"}}]
       (is (= (d/select doc data)
-             {:__typename nil
-              :alias      "Bob"
+             {:alias      "Bob"
               :email      nil}))
       (is (= (d/select doc data true)
              {:alias "Bob"})))))

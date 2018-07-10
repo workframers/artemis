@@ -17,7 +17,7 @@
                :stringField "this is a string"
                :numberField 3
                :nullField   nil}
-    :entities {[::cache "root"]
+    :entities {"root"
                {:id          "abcd"
                 :stringField "this is a string"
                 :numberField 3
@@ -36,7 +36,7 @@
                :stringField "The arg was 1"
                :numberField 3
                :nullField   nil}
-    :entities {[::cache "root"]
+    :entities {"root"
                {:id                        "abcd"
                 "stringField({\"arg\":1})" "The arg was 1"
                 :numberField               3
@@ -55,7 +55,7 @@
                :aliasedField "this is a string"
                :numberField  3
                :nullField    nil}
-    :entities {[::cache "root"]
+    :entities {"root"
                {:id          "abcd"
                 :stringField "this is a string"
                 :numberField 3
@@ -76,7 +76,7 @@
                :aliasedField2 "The arg was 2"
                :numberField   3
                :nullField     nil}
-    :entities {[::cache "root"]
+    :entities {"root"
                {:id                        "abcd"
                 "stringField({\"arg\":1})" "The arg was 1"
                 "stringField({\"arg\":2})" "The arg was 2"
@@ -99,7 +99,7 @@
                  :stringField "This worked"
                  :numberField 5
                  :nullField   nil}
-    :entities   {[::cache "root"]
+    :entities   {"root"
                  {:id                                             "abcd"
                   :nullField                                      nil
                   "numberField({\"intArg\":5,\"floatArg\":3.14})" 5
@@ -124,7 +124,7 @@
                  :stringField "This worked"
                  :numberField 5
                  :nullField   nil}
-    :entities   {[::cache "root"]
+    :entities   {"root"
                  {:id                                                   "abcd"
                   :nullField                                            nil
                   "numberField({\"intArg\":5,\"floatArg\":3.14})"       5
@@ -143,7 +143,7 @@
                :firstName "James"
                :lastName  "BOND"
                :birthDate "20-05-1940"}
-    :entities {[::cache "root"]
+    :entities {"root"
                {:id                                                 "abcd"
                 :firstName                                          "James"
                 "lastName@upperCase"                                "BOND"
@@ -171,21 +171,19 @@
                :nestedObj   {:id          "abcde"
                              :stringField "this is a string too"
                              :numberField 3
-                             :nullField   nil
-                             :__typename  "object"}}
-    :entities {[::cache "root"]
+                             :nullField   nil}}
+    :entities {"root"
                {:id          "abcd"
                 :stringField "this is a string"
                 :numberField 3
                 :nullField   nil
-                :nestedObj   [:object/id "abcde"]
+                :nestedObj   {:artemis.mapgraph/ref "abcde"}
                 ::cache      "root"}
-               [:object/id "abcde"]
-               {:object/id          "abcde"
-                :object/stringField "this is a string too"
-                :object/numberField 3
-                :object/nullField   nil
-                :__typename         "object"}}}
+               "abcde"
+               {:id          "abcde"
+                :stringField "this is a string too"
+                :numberField 3
+                :nullField   nil}}}
 
    :nested-no-id
    {:query    (d/parse-document
@@ -206,20 +204,18 @@
                :nullField   nil
                :nestedObj   {:stringField "this is a string too"
                              :numberField 3
-                             :nullField   nil
-                             :__typename  "object"}}
-    :entities {[::cache "root"]
+                             :nullField   nil}}
+    :entities {"root"
                {:id          "abcd"
                 :stringField "this is a string"
                 :numberField 3
                 :nullField   nil
-                :nestedObj   [::cache "root.nestedObj"]
+                :nestedObj   {:artemis.mapgraph/ref "root.nestedObj"}
                 ::cache      "root"}
-               [::cache "root.nestedObj"]
-               {:object/stringField "this is a string too"
-                :object/numberField 3
-                :object/nullField   nil
-                :__typename         "object"
+               "root.nestedObj"
+               {:stringField "this is a string too"
+                :numberField 3
+                :nullField   nil
                 ::cache             "root.nestedObj"}}}
 
    :nested-with-args
@@ -241,20 +237,18 @@
                :nullField   nil
                :nestedObj   {:stringField "this is a string too"
                              :numberField 3
-                             :nullField   nil
-                             :__typename  "object"}}
-    :entities {[::cache "root"]
+                             :nullField   nil}}
+    :entities {"root"
                {:id                            "abcd"
                 :stringField                   "this is a string"
                 :numberField                   3
                 :nullField                     nil
-                "nestedObj({\"arg\":\"val\"})" [::cache "root.nestedObj({\"arg\":\"val\"})"]
+                "nestedObj({\"arg\":\"val\"})" {:artemis.mapgraph/ref "root.nestedObj({\"arg\":\"val\"})"}
                 ::cache                        "root"}
-               [::cache "root.nestedObj({\"arg\":\"val\"})"]
-               {:object/stringField "this is a string too"
-                :object/numberField 3
-                :object/nullField   nil
-                :__typename         "object"
+               "root.nestedObj({\"arg\":\"val\"})"
+               {:stringField "this is a string too"
+                :numberField 3
+                :nullField   nil
                 ::cache             "root.nestedObj({\"arg\":\"val\"})"}}}
 
    :nested-array
@@ -278,33 +272,29 @@
                :nestedArray [{:id          "abcde"
                               :stringField "this is a string too"
                               :numberField 2
-                              :nullField   nil
-                              :__typename  "object"}
+                              :nullField   nil}
                              {:id          "abcdef"
                               :stringField "this is a string also"
                               :numberField 3
-                              :nullField   nil
-                              :__typename  "object"}]}
-    :entities {[::cache "root"]
+                              :nullField   nil}]}
+    :entities {"root"
                {:id          "abcd"
                 :stringField "this is a string"
                 :numberField 1
                 :nullField   nil
-                :nestedArray [[:object/id "abcde"]
-                              [:object/id "abcdef"]]
+                :nestedArray [{:artemis.mapgraph/ref "abcde"}
+                              {:artemis.mapgraph/ref "abcdef"}]
                 ::cache      "root"}
-               [:object/id "abcde"]
-               {:object/id          "abcde"
-                :object/stringField "this is a string too"
-                :object/numberField 2
-                :object/nullField   nil
-                :__typename         "object"}
-               [:object/id "abcdef"]
-               {:object/id          "abcdef"
-                :object/stringField "this is a string also"
-                :object/numberField 3
-                :object/nullField   nil
-                :__typename         "object"}}}
+               "abcde"
+               {:id          "abcde"
+                :stringField "this is a string too"
+                :numberField 2
+                :nullField   nil}
+               "abcdef"
+               {:id          "abcdef"
+                :stringField "this is a string also"
+                :numberField 3
+                :nullField   nil}}}
 
    :nested-array-with-null
    {:query    (d/parse-document
@@ -327,22 +317,20 @@
                :nestedArray [{:id          "abcde"
                               :stringField "this is a string too"
                               :numberField 2
-                              :nullField   nil
-                              :__typename  "object"}
+                              :nullField   nil}
                              nil]}
-    :entities {[::cache "root"]
+    :entities {"root"
                {:id          "abcd"
                 :stringField "this is a string"
                 :numberField 1
                 :nullField   nil
-                :nestedArray [[:object/id "abcde"] nil]
+                :nestedArray [{:artemis.mapgraph/ref "abcde"} nil]
                 ::cache      "root"}
-               [:object/id "abcde"]
-               {:object/id          "abcde"
-                :object/stringField "this is a string too"
-                :object/numberField 2
-                :object/nullField   nil
-                :__typename         "object"}}}
+               "abcde"
+               {:id          "abcde"
+                :stringField "this is a string too"
+                :numberField 2
+                :nullField   nil}}}
 
    :deeply-nested-array
    {:query    (d/parse-document
@@ -371,67 +359,61 @@
                               :deeplyNestedArray [{:numberField 10
                                                    :stringField "Foo"}
                                                   {:numberField 20
-                                                   :stringField "Bar"}]
-                              :__typename        "object"}
+                                                   :stringField "Bar"}]}
                              {:stringField       "this is a string also"
                               :numberField       3
                               :deeplyNestedArray [{:numberField 30
                                                    :stringField "Baz"}
                                                   {:numberField 40
                                                    :stringField "Boo"}]
-                              :nullField         nil
-                              :__typename        "object"}
+                              :nullField         nil}
 
                              {:stringField       "this is a string, man"
                               :numberField       6
                               :deeplyNestedArray []
-                              :nullField         nil
-                              :__typename        "object"}]}
-    :entities {[::cache "root"]
+                              :nullField         nil}]}
+    :entities {"root"
                {:id          "abcd"
                 :stringField "this is a string"
                 :numberField 1
                 :nullField   nil
-                :nestedArray [[::cache "root.nestedArray.0"]
-                              [::cache "root.nestedArray.1"]
-                              [::cache "root.nestedArray.2"]]
+                :nestedArray [{:artemis.mapgraph/ref "root.nestedArray.0"}
+                              {:artemis.mapgraph/ref "root.nestedArray.1"}
+                              {:artemis.mapgraph/ref "root.nestedArray.2"}]
                 ::cache      "root"}
-               [::cache "root.nestedArray.0"]
-               {:object/stringField "this is a string too"
-                :object/numberField 2
-                :object/nullField   nil
-                :object/deeplyNestedArray [[::cache "root.nestedArray.0.deeplyNestedArray.0"]
-                                           [::cache "root.nestedArray.0.deeplyNestedArray.1"]]
-                :__typename         "object"
+               "root.nestedArray.0"
+               {:stringField "this is a string too"
+                :numberField 2
+                :nullField   nil
+                :deeplyNestedArray [{:artemis.mapgraph/ref "root.nestedArray.0.deeplyNestedArray.0"}
+                                    {:artemis.mapgraph/ref "root.nestedArray.0.deeplyNestedArray.1"}]
                 ::cache             "root.nestedArray.0"}
-               [::cache "root.nestedArray.1"]
-               {:object/stringField "this is a string also"
-                :object/numberField 3
-                :object/nullField   nil
-                :object/deeplyNestedArray [[::cache "root.nestedArray.1.deeplyNestedArray.0"]
-                                           [::cache "root.nestedArray.1.deeplyNestedArray.1"]]
-                :__typename         "object"
+               "root.nestedArray.1"
+               {:stringField "this is a string also"
+                :numberField 3
+                :nullField   nil
+                :deeplyNestedArray [{:artemis.mapgraph/ref "root.nestedArray.1.deeplyNestedArray.0"}
+                                    {:artemis.mapgraph/ref "root.nestedArray.1.deeplyNestedArray.1"}]
                 ::cache             "root.nestedArray.1"}
-               [::cache "root.nestedArray.2"]
-               {:object/stringField       "this is a string, man"
-                :object/numberField       6
-                :object/nullField         nil
-                :object/deeplyNestedArray []
-                :__typename               "object"
-                ::cache                   "root.nestedArray.2"}
-               [::cache "root.nestedArray.0.deeplyNestedArray.0"]
+               "root.nestedArray.2"
+               {:stringField       "this is a string, man"
+                :numberField       6
+                :nullField         nil
+                :deeplyNestedArray []
+                ::cache            "root.nestedArray.2"}
+               "root.nestedArray.0.deeplyNestedArray.0"
                {:numberField 10
                 :stringField "Foo"
                 ::cache      "root.nestedArray.0.deeplyNestedArray.0"}
-               [::cache "root.nestedArray.0.deeplyNestedArray.1"]
+               "root.nestedArray.0.deeplyNestedArray.1"
                {:numberField 20
                 :stringField "Bar"
                 ::cache      "root.nestedArray.0.deeplyNestedArray.1"}
-               [::cache "root.nestedArray.1.deeplyNestedArray.0"]
+               "root.nestedArray.1.deeplyNestedArray.0"
                {:numberField 30
                 :stringField "Baz"
                 ::cache      "root.nestedArray.1.deeplyNestedArray.0"}
-               [::cache "root.nestedArray.1.deeplyNestedArray.1"]
+               "root.nestedArray.1.deeplyNestedArray.1"
                {:numberField 40
                 :stringField "Boo"
                 ::cache      "root.nestedArray.1.deeplyNestedArray.1"}}}
@@ -455,32 +437,28 @@
                :nullField   nil
                :nestedArray [{:stringField "this is a string too"
                               :numberField 2
-                              :nullField   nil
-                              :__typename  "object"}
+                              :nullField   nil}
                              {:stringField "this is a string also"
                               :numberField 3
-                              :nullField   nil
-                              :__typename  "object"}]}
-    :entities {[::cache "root"]
+                              :nullField   nil}]}
+    :entities {"root"
                {:id          "abcd"
                 :stringField "this is a string"
                 :numberField 1
                 :nullField   nil
-                :nestedArray [[::cache "root.nestedArray.0"]
-                              [::cache "root.nestedArray.1"]]
+                :nestedArray [{:artemis.mapgraph/ref "root.nestedArray.0"}
+                              {:artemis.mapgraph/ref "root.nestedArray.1"}]
                 ::cache      "root"}
-               [::cache "root.nestedArray.0"]
-               {:object/stringField "this is a string too"
-                :object/numberField 2
-                :object/nullField   nil
-                :__typename         "object"
-                ::cache             "root.nestedArray.0"}
-               [::cache "root.nestedArray.1"]
-               {:object/stringField "this is a string also"
-                :object/numberField 3
-                :object/nullField   nil
-                :__typename         "object"
-                ::cache             "root.nestedArray.1"}}}
+               "root.nestedArray.0"
+               {:stringField "this is a string too"
+                :numberField 2
+                :nullField   nil
+                ::cache      "root.nestedArray.0"}
+               "root.nestedArray.1"
+               {:stringField "this is a string also"
+                :numberField 3
+                :nullField   nil
+                ::cache      "root.nestedArray.1"}}}
 
    :nested-array-with-nulls-and-no-ids
    {:query    (d/parse-document
@@ -502,22 +480,20 @@
                :nestedArray [nil
                              {:stringField "this is a string also"
                               :numberField 3
-                              :nullField   nil
-                              :__typename  "object"}]}
-    :entities {[::cache "root"]
+                              :nullField   nil}]}
+    :entities {"root"
                {:id          "abcd"
                 :stringField "this is a string"
                 :numberField 1
                 :nullField   nil
                 :nestedArray [nil
-                              [::cache "root.nestedArray.1"]]
+                              {:artemis.mapgraph/ref "root.nestedArray.1"}]
                 ::cache      "root"}
-               [::cache "root.nestedArray.1"]
-               {:object/stringField "this is a string also"
-                :object/numberField 3
-                :object/nullField   nil
-                :__typename         "object"
-                ::cache             "root.nestedArray.1"}}}
+               "root.nestedArray.1"
+               {:stringField "this is a string also"
+                :numberField 3
+                :nullField   nil
+                ::cache      "root.nestedArray.1"}}}
 
    :simple-array
    {:query    (d/parse-document
@@ -533,7 +509,7 @@
                :numberField 3
                :nullField   nil
                :simpleArray ["one" "two" "three"]}
-    :entities {[::cache "root"]
+    :entities {"root"
                {:id          "abcd"
                 :stringField "this is a string"
                 :numberField 3
@@ -555,7 +531,7 @@
                :numberField 3
                :nullField   nil
                :simpleArray [nil "two" "three"]}
-    :entities {[::cache "root"]
+    :entities {"root"
                {:id          "abcd"
                 :stringField "this is a string"
                 :numberField 3
@@ -578,22 +554,19 @@
                  }")
     :result   {:id      "a"
                :object1 {:id          "aa"
-                         :stringField "this is a string"
-                         :__typename  "object"}
+                         :stringField "this is a string"}
                :object2 {:id          "aa"
-                         :numberField 1
-                         :__typename  "object"}}
+                         :numberField 1}}
 
-    :entities {[::cache "root"]
+    :entities {"root"
                {:id      "a"
-                :object1 [:object/id "aa"]
-                :object2 [:object/id "aa"]
+                :object1 {:artemis.mapgraph/ref "aa"}
+                :object2 {:artemis.mapgraph/ref "aa"}
                 ::cache  "root"}
-               [:object/id "aa"]
-               {:object/id          "aa"
-                :object/stringField "this is a string"
-                :object/numberField 1
-                :__typename         "object"}}}
+               "aa"
+               {:id          "aa"
+                :stringField "this is a string"
+                :numberField 1}}}
 
    :obj-in-different-array-paths
    {:query    (d/parse-document
@@ -620,36 +593,29 @@
                :array1 [{:id          "aa"
                          :stringField "this is a string"
                          :obj         {:id          "aaa"
-                                       :stringField "string"
-                                       :__typename  "nested-object"}
-                         :__typename  "object"}]
+                                       :stringField "string"}}]
                :array2 [{:id          "ab"
                          :stringField "this is a string too"
                          :obj         {:id          "aaa"
-                                       :numberField 1
-                                       :__typename  "nested-object"}
-                         :__typename  "object"}]}
+                                       :numberField 1}}]}
 
-    :entities {[::cache "root"]
+    :entities {"root"
                {:id     "a"
-                :array1 [[:object/id "aa"]]
-                :array2 [[:object/id "ab"]]
+                :array1 [{:artemis.mapgraph/ref "aa"}]
+                :array2 [{:artemis.mapgraph/ref "ab"}]
                 ::cache "root"}
-               [:object/id "aa"]
-               {:object/id          "aa"
-                :object/stringField "this is a string"
-                :object/obj         [:nested-object/id "aaa"]
-                :__typename         "object"}
-               [:object/id "ab"]
-               {:object/id          "ab"
-                :object/stringField "this is a string too"
-                :object/obj         [:nested-object/id "aaa"]
-                :__typename         "object"}
-               [:nested-object/id "aaa"]
-               {:nested-object/id          "aaa"
-                :nested-object/stringField "string"
-                :nested-object/numberField 1
-                :__typename                "nested-object"}}}
+               "aa"
+               {:id          "aa"
+                :stringField "this is a string"
+                :obj         {:artemis.mapgraph/ref "aaa"}}
+               "ab"
+               {:id          "ab"
+                :stringField "this is a string too"
+                :obj         {:artemis.mapgraph/ref "aaa"}}
+               "aaa"
+               {:id          "aaa"
+                :stringField "string"
+                :numberField 1}}}
 
    :nested-object-returning-null
    {:query    (d/parse-document
@@ -670,7 +636,7 @@
                :numberField 3
                :nullField   nil
                :nestedObj   nil}
-    :entities {[::cache "root"]
+    :entities {"root"
                {:id          "abcd"
                 :stringField "this is a string"
                 :numberField 3
@@ -685,10 +651,12 @@
                        ... on object {
                          id
                          stringField
+                         __typename
                        }
                        ... on otherobject {
                          id
                          numberField
+                         __typename
                        }
                      }
                    }")
@@ -699,17 +667,18 @@
                   {:id          "efgh"
                    :numberField 3
                    :__typename  "otherobject"}]}
-      :entities {[::cache "root"]
-                 {"search({\"text\":\"a\"})" [[:object/id "abcd"] [:otherobject/id "efgh"]]
+      :entities {"root"
+                 {"search({\"text\":\"a\"})" [{:artemis.mapgraph/ref "abcd"}
+                                              {:artemis.mapgraph/ref "efgh"}]
                   ::cache                    "root"}
-                 [:object/id "abcd"]
-                 {:object/id          "abcd"
-                  :object/stringField "this is a string"
-                  :__typename         "object"}
-                 [:otherobject/id "efgh"]
-                 {:otherobject/id          "efgh"
-                  :otherobject/numberField 3
-                  :__typename              "otherobject"}}}
+                 "abcd"
+                 {:id          "abcd"
+                  :stringField "this is a string"
+                  :__typename  "object"}
+                 "efgh"
+                 {:id          "efgh"
+                  :numberField 3
+                  :__typename  "otherobject"}}}
 
      :union-array-no-id
      {:query    (d/parse-document
@@ -717,6 +686,7 @@
                      search(text: \"a\") {
                        ... on someobject {
                          stringField
+                         __typename
                        }
                      }
                    }")
@@ -725,18 +695,18 @@
                    :__typename  "someobject"}
                   {:stringField "this is another string"
                    :__typename  "someobject"}]}
-      :entities {[::cache "root"]
-                 {"search({\"text\":\"a\"})" [[::cache "root.search({\"text\":\"a\"}).0"]
-                                              [::cache "root.search({\"text\":\"a\"}).1"]]
+      :entities {"root"
+                 {"search({\"text\":\"a\"})" [{:artemis.mapgraph/ref "root.search({\"text\":\"a\"}).0"}
+                                              {:artemis.mapgraph/ref "root.search({\"text\":\"a\"}).1"}]
                   ::cache                    "root"}
-                 [::cache "root.search({\"text\":\"a\"}).0"]
-                 {:someobject/stringField "this is a string"
-                  :__typename             "someobject"
-                  ::cache                 "root.search({\"text\":\"a\"}).0"}
-                 [::cache "root.search({\"text\":\"a\"}).1"]
-                 {:someobject/stringField "this is another string"
-                  :__typename             "someobject"
-                  ::cache                 "root.search({\"text\":\"a\"}).1"}}}
+                 "root.search({\"text\":\"a\"}).0"
+                 {:stringField "this is a string"
+                  :__typename  "someobject"
+                  ::cache      "root.search({\"text\":\"a\"}).0"}
+                 "root.search({\"text\":\"a\"}).1"
+                 {:stringField "this is another string"
+                  :__typename  "someobject"
+                  ::cache      "root.search({\"text\":\"a\"}).1"}}}
 
      :nested-union
      {:query    (d/parse-document
@@ -748,10 +718,12 @@
                          id
                          numberField
                          stringField
+                         __typename
                        }
                        ... on otherobject {
                          id
                          stringField
+                         __typename
                        }
                      }
                    }")
@@ -761,16 +733,16 @@
                                :stringField "this is a string"
                                :numberField 3
                                :__typename  "object"}}
-      :entities {[::cache "root"]
+      :entities {"root"
                  {:id          "a"
                   :stringField "this is a string"
-                  :unionObj    [:object/id "abcd"]
+                  :unionObj    {:artemis.mapgraph/ref "abcd"}
                   ::cache      "root"}
-                 [:object/id "abcd"]
-                 {:object/id          "abcd"
-                  :object/stringField "this is a string"
-                  :object/numberField 3
-                  :__typename         "object"}}}
+                 "abcd"
+                 {:id          "abcd"
+                  :stringField "this is a string"
+                  :numberField 3
+                  :__typename  "object"}}}
 
      :nested-union-no-id
      {:query    (d/parse-document
@@ -781,9 +753,11 @@
                        ... on someobject {
                          numberField
                          stringField
+                         __typename
                        }
                        ... on someotherobject {
                          stringField
+                         __typename
                        }
                      }
                    }")
@@ -792,16 +766,16 @@
                  :unionObj    {:stringField "this is a string"
                                :numberField 3
                                :__typename  "someobject"}}
-      :entities {[::cache "root"]
+      :entities {"root"
                  {:id          "a"
                   :stringField "this is a string"
-                  :unionObj    [::cache "root.unionObj"]
+                  :unionObj    {:artemis.mapgraph/ref "root.unionObj"}
                   ::cache      "root"}
-                 [::cache "root.unionObj"]
-                 {:someobject/stringField "this is a string"
-                  :someobject/numberField 3
-                  :__typename             "someobject"
-                  ::cache                 "root.unionObj"}}}
+                 "root.unionObj"
+                 {:stringField "this is a string"
+                  :numberField 3
+                  :__typename  "someobject"
+                  ::cache      "root.unionObj"}}}
 
    :fragments
    {:query    (d/parse-document
@@ -817,7 +791,7 @@
     :result   {:id          "abcd"
                :stringField "this is a string"
                :numberField 3}
-    :entities {[::cache "root"]
+    :entities {"root"
                {:id          "abcd"
                 :stringField "this is a string"
                 :numberField 3
@@ -840,17 +814,15 @@
     :result   {:id        "abcd"
                :nestedObj {:id          "abcde"
                            :stringField "this is a string"
-                           :numberField 3
-                           :__typename  "object"}}
-    :entities {[::cache "root"]
+                           :numberField 3}}
+    :entities {"root"
                {:id        "abcd"
-                :nestedObj [:object/id "abcde"]
+                :nestedObj {:artemis.mapgraph/ref "abcde"}
                 ::cache    "root"}
-               [:object/id "abcde"]
-               {:object/id          "abcde"
-                :object/stringField "this is a string"
-                :object/numberField 3
-                :__typename         "object"}}}
+               "abcde"
+               {:id          "abcde"
+                :stringField "this is a string"
+                :numberField 3}}}
 
    :chained-fragments
    {:query    (d/parse-document
@@ -871,17 +843,20 @@
     :result   {:id          "abcd"
                :stringField "this is a string"
                :numberField 3}
-    :entities {[::cache "root"]
+    :entities {"root"
                {:id          "abcd"
                 :stringField "this is a string"
                 :numberField 3
                 ::cache      "root"}}}
 })
 
+(defn- id-fn [o]
+  (:id o))
+
 (defn write-test [k]
   (testing (str "testing normalized cache persistence for query type: " k)
     (let [{:keys [query input-vars result entities]} (get test-queries k)
-          initial-store (create-store :id-attrs #{:object/id :nested-object/id :otherobject/id}
+          initial-store (create-store :id-fn id-fn
                                       :cache-key ::cache)
           new-store (a/write initial-store {:data result} query input-vars)]
       (is (= entities (:entities new-store))))))
@@ -893,7 +868,7 @@
 (defn read-test [k]
   (testing (str "testing normalized cache querying for query type: " k)
     (let [{:keys [query input-vars result entities]} (get test-queries k)
-          store (create-store :id-attrs #{:object/id :nested-object/id}
+          store (create-store :id-fn id-fn
                               :entities entities
                               :cache-key ::cache)
           response (a/read store query input-vars)]
@@ -909,13 +884,13 @@
                    "fragment A on object {
                       stringField
                     }")
-    :entities    {[:object/id "abcde"]
+    :entities    {"abcde"
                   {:id          "abcde"
                    :stringField "this is a string"
                    :numberField 3
                    :nullField   nil
                    ::cache      "root"}}
-    :entity      [:object/id "abcde"]
+    :entity      "abcde"
     :write-data  {:stringField "this is a different string"}
     :read-result {:stringField "this is a string"}}
 
@@ -925,11 +900,11 @@
                       numberField
                       stringField
                     }")
-    :entities    {[:object/id "abcde"]
-                  {:object/id          "abcde"
-                   :object/stringField "this is a string"
-                   :object/numberField 3}}
-    :entity      [:object/id "abcde"]
+    :entities    {"abcde"
+                  {:id          "abcde"
+                   :stringField "this is a string"
+                   :numberField 3}}
+    :entity      "abcde"
     :write-data  {:stringField "this is a different string"
                   :numberField 4}
     :read-result {:stringField "this is a string"
@@ -938,7 +913,7 @@
 (defn write-fragment-test [k]
   (testing (str "testing normalized cache persistence for fragment type: " k)
     (let [{:keys [fragment entity write-data entities]} (get test-fragments k)
-          initial-store (create-store :id-attrs #{:object/id :nested-object/id :otherobject/id}
+          initial-store (create-store :id-fn id-fn
                                       :entities entities
                                       :cache-key ::cache)
           old-ent (get (:entities initial-store) entity)
@@ -953,7 +928,7 @@
 (defn read-fragment-test [k]
   (testing (str "testing normalized cache reading for fragment type: " k)
     (let [{:keys [fragment entity entities read-result]} (get test-fragments k)
-          store (create-store :id-attrs #{:object/id :nested-object/id :otherobject/id}
+          store (create-store :id-fn id-fn
                               :entities entities
                               :cache-key ::cache)
           response (a/read-fragment store fragment entity)]

@@ -13,7 +13,7 @@
            field isn't returned in a query, the cache will store the field with
            a generic key and it will not be retrievable via a normal look up."}
   MapGraphStore
-  [id-attrs entities cache-key]
+  [id-fn entities cache-key]
   sp/GQLStore
   (-read [this document variables return-partial?]         ;todo: implement return-partial
     {:data (not-empty (read-from-cache document variables this))})
@@ -34,7 +34,7 @@
   [store]
   (and (instance? MapGraphStore store)
        (satisfies? sp/GQLStore store)
-       (set? (:id-attrs store))
+       (fn? (:id-fn store))
        (map? (:entities store))))
 
 (defn create-store
@@ -45,15 +45,14 @@
   - `:cache-key` The default generic key for the store's cache. Defaults to
                  `:artemis.stores.mapgrah.core/cache`."
   {:added "0.1.0"}
-  [& {:keys [id-attrs entities cache-key]
-      :or   {id-attrs  #{}
+  [& {:keys [id-fn entities cache-key]
+      :or   {id-fn     :id
              entities  {}
              cache-key ::cache}}]
-  (let [cache-key (or cache-key ::cache)]
-    (MapGraphStore. (conj id-attrs cache-key) entities cache-key)))
+  (MapGraphStore. id-fn entities cache-key))
 
 (defn clear
-  "Returns a store with unique indexes and entities cleared out."
+  "Returns a store with entities cleared out."
   {:added "0.1.0"}
   [store]
-  (assoc store :entities {} :id-attrs #{}))
+  (assoc store :entities {}))

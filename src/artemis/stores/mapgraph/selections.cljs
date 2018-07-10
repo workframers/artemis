@@ -81,9 +81,15 @@
   (when-let [sel-set (:selection-set sel)]
     (reduce (fn [acc sel]
               (if (keyword-identical? (:node-type sel) :inline-fragment)
-                (if (= (:type-name (:type-condition sel)) (:__typename v))
-                  (into acc (:selection-set sel))
-                  acc)
+                (if-let [typename (:__typename v)]
+                  (if (= (:type-name (:type-condition sel)) typename)
+                    (into acc (:selection-set sel))
+                    acc)
+                  (throw (ex-info "union type used, but typename not specified"
+                                  {:reason     ::missing-typename
+                                   ::entity    v
+                                   ::attribute :__typename
+                                   ::value     nil})))
                 (conj acc sel)))
             []
             sel-set)))
@@ -96,7 +102,7 @@
     join-expr
     (reduce (fn [acc [condition selection]]
               (if (= (:type-name (:type-condition condition))
-                     (:__typename (get entities lookup-ref)))
+                     (:__typename (get entities (:artemis.mapgraph/ref lookup-ref))))
                 (reduced (into acc selection))
                 acc))
             []
