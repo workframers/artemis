@@ -13,7 +13,7 @@
            field isn't returned in a query, the cache will store the field with
            a generic key and it will not be retrievable via a normal look up."}
   MapGraphStore
-  [id-fn entities cache-key]
+  [id-fn entities cache-redirects cache-key]
   sp/GQLStore
   (-read [this document variables return-partial?]
     {:data (not-empty (read-from-cache document variables this return-partial?))})
@@ -40,16 +40,20 @@
 (defn create-store
   "Returns a new `MapGraphStore` for the given parameters:
 
-  - `:id-attrs`  A set of keys to normalize on. Defaults to `#{}`.
-  - `:entities`  A map of stored entities. Defaults to `{}`.
-  - `:cache-key` The default generic key for the store's cache. Defaults to
-                 `:artemis.stores.mapgrah.core/cache`."
+  - `:id-attrs`        A set of keys to normalize on. Defaults to `#{}`.
+  - `:entities`        A map of stored entities. Defaults to `{}`.
+  - `:cache-redirects` A map of of field to function, that redirects the root
+                       from whence the selection-set will be resolved. Defaults
+                       to `{}`.
+  - `:cache-key`       The default generic key for the store's cache. Defaults
+                       to `:artemis.stores.mapgrah.core/cache`."
   {:added "0.1.0"}
-  [& {:keys [id-fn entities cache-key]
-      :or   {id-fn     :id
-             entities  {}
-             cache-key ::cache}}]
-  (MapGraphStore. id-fn entities cache-key))
+  [& {:keys [id-fn entities cache-redirects cache-key]
+      :or   {id-fn           :id
+             entities        {}
+             cache-redirects {}
+             cache-key       ::cache}}]
+  (MapGraphStore. id-fn entities cache-redirects cache-key))
 
 (defn clear
   "Returns a store with entities cleared out."
