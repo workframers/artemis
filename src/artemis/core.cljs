@@ -152,7 +152,7 @@
    (update client :store reset! (after-fn new-store))))
 
 (s/def ::out-chan ::chan)
-(s/def ::fetch-policy #{:local-only :local-first :local-then-remote :remote-only})
+(s/def ::fetch-policy #{:no-cache :local-only :local-first :local-then-remote :remote-only})
 
 (s/fdef query!
         :args (s/alt
@@ -184,6 +184,12 @@
                     Defaults to `:local-only`.
 
   The available fetch policies and corresponding implications are:
+
+  #### `:no-cache`
+  A query will never be read or write to the local store. Instead, it will
+  always execute a remote query without caching the result. This policy
+  is for when you want data coming directly from the remote source and don't
+  intend for the result to ever be used by other queries.
 
   #### `:local-only`
   A query will never be executed remotely. Instead, the query will only run
@@ -237,6 +243,22 @@
      (l/log-query! document variables fetch-policy)
      (l/log-store-before! old-store)
      (case fetch-policy
+       :no-cache
+       (let [remote-result-chan (remote-read)]
+         (async/put! out-chan {:data           nil
+                               :variables      variables
+                               :in-flight?     true
+                               :network-status :fetching})
+         (go (let [remote-result (async/<! remote-result-chan)
+                   message       (result->message remote-result)]
+               (async/put! out-chan (assoc message
+                                           :variables      variables
+                                           :in-flight?     false
+                                           :network-status :ready))
+               (l/log-store-after! old-store old-store)
+               (l/log-end!)
+               (async/close! out-chan))))
+
        :local-only
        (let [local-result (local-read)]
          (async/put! out-chan

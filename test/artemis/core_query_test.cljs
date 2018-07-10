@@ -7,6 +7,36 @@
 
 (def variables {:episode "The Empire Strikes Back"})
 
+(deftest query-no-cache
+  (async done
+    (let [cache (atom {})]
+      (with-client
+       {:store-query-fn (fn [_ _ {:keys [episode]} _]
+                          {:data (get @cache episode)})
+        :store-write-fn (fn [this {:keys [data]} _ {:keys [episode]}]
+                          (reset! cache {episode data})
+                          this)}
+       (let [result-chan (core/query! client tu/query-doc variables :fetch-policy :no-cache)]
+         (go (let [local-result  (<! result-chan)]
+               (is (nil? (:data local-result)))
+               (is (= (:variables local-result) variables))
+               (is (= (:network-status local-result) :fetching))
+               (is (true? (:in-flight? local-result)))
+               (is (= @cache {})))
+
+             ;; Putting a fake remote result
+             (put-result! {:data "Luke Skywalker"})
+
+             (let [remote-result (<! result-chan)
+                   closed?       (nil? (<! result-chan))]
+               (is (= (:data remote-result) "Luke Skywalker"))
+               (is (= (:variables remote-result) variables))
+               (is (= (:network-status remote-result) :ready))
+               (is (false? (:in-flight? remote-result)))
+               (is (= @cache {}))
+               (is closed?)
+               (done))))))))
+
 (deftest query-local-only-cached
   (testing "local-only when data available"
     (async done
