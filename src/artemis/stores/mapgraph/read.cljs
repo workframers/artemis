@@ -17,6 +17,11 @@
   [store ref]
   (boolean (:artemis.mapgraph/ref ref)))
 
+(defn- ^boolean incomplete?
+  "Returns true if the value is impartial"
+  [x]
+  (keyword-identical? x ::incomplete-value))
+
 (defn- modify-entity-for-gql                                 ;todo: fix how wasteful and unperformant this is
   "Converts the selection's key in entity to what it would be in a normal gql response"
   [selection context ent]
@@ -66,10 +71,13 @@
               (assoc result k val)
 
               (ref? store val)
-              (assoc result k (pull store
-                                    (ref-join-expr entities join-expr (get entity expr) selection)
-                                    val
-                                    gql-context))
+              (let [pulled (pull store
+                                 (ref-join-expr entities join-expr (get entity expr) selection)
+                                 val
+                                 gql-context)]
+                (if (incomplete? pulled)
+                  (reduced pulled)
+                  (assoc result k pulled)))
 
               :else
               (do (when-not (coll? val)
@@ -121,7 +129,10 @@
               (if (aliased? selection)
                 (assoc result (-> selection :name keyword) val)
                 (assoc result expr val))
-              result)
+              ;; Keyword was in query, but not found in store
+              (if (:return-partial? gql-context)
+                result
+                (reduced ::incomplete-value)))
 
             (map? expr)
             (pull-join store result expr entity gql-context)
@@ -139,19 +150,27 @@
       pattern)))
 
 (defn read-from-cache
-  [document input-vars store]
+  [document input-vars store return-partial?]
   (let [first-op (-> document :operation-definitions first)
         fragments (fragments-map document)
         context {:input-vars input-vars                      ; variables given to this op
                  :vars-info (:variable-definitions first-op) ; info about the kinds of variables supported by this op
+                 :return-partial? return-partial?
                  :store store}
-        pull-pattern (->gql-pull-pattern first-op fragments)]
-    (pull store pull-pattern {:artemis.mapgraph/ref "root"} context)))
+        pull-pattern (->gql-pull-pattern first-op fragments)
+        result (pull store pull-pattern {:artemis.mapgraph/ref "root"} context)]
+    (when-not (incomplete? result)
+      result)))
 
 (defn read-from-entity
-  [document ent-ref store]
+  [document ent-ref store return-partial?]
   (let [first-frag (-> document :fragment-definitions first)
         fragments (fragments-map document)
-        context {:input-vars {} :vars-info nil :store store}
-        pull-pattern (->gql-pull-pattern first-frag fragments)]
-    (pull store pull-pattern {:artemis.mapgraph/ref ent-ref} context)))
+        context {:input-vars {}
+                 :vars-info nil
+                 :return-partial? return-partial?
+                 :store store}
+        pull-pattern (->gql-pull-pattern first-frag fragments)
+        result (pull store pull-pattern {:artemis.mapgraph/ref ent-ref} context)]
+    (when-not (incomplete? result)
+      result)))

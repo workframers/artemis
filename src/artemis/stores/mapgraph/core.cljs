@@ -15,10 +15,10 @@
   MapGraphStore
   [id-fn entities cache-key]
   sp/GQLStore
-  (-read [this document variables return-partial?]         ;todo: implement return-partial
-    {:data (not-empty (read-from-cache document variables this))})
+  (-read [this document variables return-partial?]
+    {:data (not-empty (read-from-cache document variables this return-partial?))})
   (-read-fragment [this document entity-ref return-partial?]
-    {:data (not-empty (read-from-entity document entity-ref this))})
+    {:data (not-empty (read-from-entity document entity-ref this return-partial?))})
   (-write [this data document variables]
     (if-let [gql-response (:data data)]
       (write-to-cache document variables gql-response this)

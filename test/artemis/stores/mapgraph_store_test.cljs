@@ -937,3 +937,65 @@
 (deftest test-cache-fragment-reading
   (doseq [test-fragment (keys test-fragments)]
     (read-fragment-test test-fragment)))
+
+(deftest return-partial
+  (let [entities {"root"
+                  {:object1 {:artemis.mapgraph/ref "aa"}
+                   ::cache  "root"}
+                  "aa"
+                  {:id          "aa"
+                   :stringField "this is a string"
+                   :otherObject {:artemis.mapgraph/ref "bb"}}
+                  "bb"
+                  {:id "bb"}}
+        store (create-store :entities entities
+                            :cache-key ::cache)]
+    (testing "query return-partial"
+      (testing "set to true and all data not present"
+        (let [query (d/parse-document "{
+                                        object1 {
+                                          id
+                                          stringField
+                                          numberField
+                                        }
+                                      }")]
+          (is (= (:data (a/read store query {} :return-partial? true))
+                 {:object1
+                  {:id          "aa"
+                   :stringField "this is a string"}}))))
+      (testing "set to false all data not present"
+        (let [query (d/parse-document "{
+                                        object1 {
+                                          id
+                                          stringField
+                                          numberField
+                                        }
+                                      }")]
+          (is (nil? (:data (a/read store query {}))))))
+      (testing "set to false all data not present deeply"
+        (let [query (d/parse-document "{
+                                        object1 {
+                                          id
+                                          otherObject {
+                                            title
+                                          }
+                                        }
+                                      }")]
+          (is (nil? (:data (a/read store query {})))))))
+    (testing "fragment return-partial"
+      (testing "set to true and all data not present"
+        (let [fragment (d/parse-document "fragment A on object {
+                                           id
+                                           stringField
+                                           numberField
+                                         }")]
+          (is (= (:data (a/read-fragment store fragment "aa" :return-partial? true))
+                 {:id          "aa"
+                  :stringField "this is a string"}))))
+      (testing "set to true and all data not present"
+        (let [fragment (d/parse-document "fragment A on object {
+                                           id
+                                           stringField
+                                           numberField
+                                         }")]
+          (is (nil? (:data (a/read-fragment store fragment "aa")))))))))
