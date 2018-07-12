@@ -92,8 +92,24 @@
                                                         %
                                                         gql-context)
                                                  val))))))
-          ;; no value for key
-          result)))
+          (if-let [redirect (some-> gql-context
+                                    :store
+                                    :cache-redirects
+                                    (get k)
+                                    (apply [{:store (:store store gql-context)
+                                             :parent-entity entity
+                                             :variables (:input-vars gql-context)}]))]
+            ;; cache-redirect found
+            (let [redirected-pull (pull (:store gql-context)
+                                        (ref-join-expr entities join-expr (get entity expr) selection)
+                                        {:artemis.mapgraph/ref redirect}
+                                        gql-context)]
+              (if redirected-pull
+                (assoc result k redirected-pull)
+                ;; redirect root resulted in nothing
+                result))
+            ;; no value for key in store and no cache-redirect found
+            result))))
     result
     pull-map))
 

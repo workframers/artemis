@@ -850,14 +850,10 @@
                 ::cache      "root"}}}
 })
 
-(defn- id-fn [o]
-  (:id o))
-
 (defn write-test [k]
   (testing (str "testing normalized cache persistence for query type: " k)
     (let [{:keys [query input-vars result entities]} (get test-queries k)
-          initial-store (create-store :id-fn id-fn
-                                      :cache-key ::cache)
+          initial-store (create-store :cache-key ::cache)
           new-store (a/write initial-store {:data result} query input-vars)]
       (is (= entities (:entities new-store))))))
 
@@ -868,8 +864,7 @@
 (defn read-test [k]
   (testing (str "testing normalized cache querying for query type: " k)
     (let [{:keys [query input-vars result entities]} (get test-queries k)
-          store (create-store :id-fn id-fn
-                              :entities entities
+          store (create-store :entities entities
                               :cache-key ::cache)
           response (a/read store query input-vars)]
       (is (= {:data result} response)))))
@@ -913,8 +908,7 @@
 (defn write-fragment-test [k]
   (testing (str "testing normalized cache persistence for fragment type: " k)
     (let [{:keys [fragment entity write-data entities]} (get test-fragments k)
-          initial-store (create-store :id-fn id-fn
-                                      :entities entities
+          initial-store (create-store :entities entities
                                       :cache-key ::cache)
           old-ent (get (:entities initial-store) entity)
           new-store (a/write-fragment initial-store write-data fragment entity)
@@ -928,8 +922,7 @@
 (defn read-fragment-test [k]
   (testing (str "testing normalized cache reading for fragment type: " k)
     (let [{:keys [fragment entity entities read-result]} (get test-fragments k)
-          store (create-store :id-fn id-fn
-                              :entities entities
+          store (create-store :entities entities
                               :cache-key ::cache)
           response (a/read-fragment store fragment entity)]
       (is (= {:data read-result} response)))))
@@ -999,3 +992,62 @@
                                            numberField
                                          }")]
           (is (nil? (:data (a/read-fragment store fragment "aa")))))))))
+
+(def cache-redirects-map
+  {:book (comp :id :variables)
+   :featuredBook (comp #(when (= % "bob") 1) :slug :variables)})
+
+(deftest cache-redirects
+  (let [entities {"root"
+                  {::cache                           "root"
+                   "author({\"slug\":\"bob\"})"      {:artemis.mapgraph/ref "bob"}
+                   "books"                           [{:artemis.mapgraph/ref 1} {:artemis.mapgraph/ref 2}]}
+
+                  "bob" {:slug "bob" }
+
+                  1 {:id 1 :title "Book 1", :abstract "Lorem ipsum..."}
+                  2 {:id 2 :title "Book 2", :abstract "Lorem ipsum..."}}
+
+        store (create-store :entities entities
+                            :cache-redirects cache-redirects-map
+                            :cache-key ::cache)]
+    (testing "simple redirect"
+      (let [query (d/parse-document "{
+                                      book(id: $id) {
+                                        id
+                                        title
+                                        abstract
+                                      }
+                                    }")]
+        (is (= (:data (a/read store query {:id 1}))
+               {:book {:id 1
+                       :title "Book 1"
+                       :abstract "Lorem ipsum..."}}))
+        (is (= (:data (a/read store query {:id 2}))
+               {:book {:id 2
+                       :title "Book 2"
+                       :abstract "Lorem ipsum..."}}))
+        (is (= (:data (a/read store query {:id 3}))
+               nil))))
+    (testing "deep redirect"
+      (let [query (d/parse-document "{
+                                       author(slug: $slug) {
+                                         featuredBook {
+                                           title
+                                         }
+                                       }
+                                     }")]
+        (is (= (:data (a/read store query {:slug "bob"}))
+               {:author {:featuredBook {:title "Book 1"}}}))))
+    (testing "mixed with non-redirect fields"
+      (let [query (d/parse-document "{
+                                       author(slug: $slug) {
+                                         slug
+                                         featuredBook {
+                                           title
+                                         }
+                                       }
+                                     }")]
+        (is (= (:data (a/read store query {:slug "bob"}))
+               {:author {:slug         "bob"
+                         :featuredBook {:title "Book 1"}}}))))))
