@@ -136,8 +136,8 @@
 (defn write-fragment
   "Calls `artemis.stores.protocols/-write-fragment` on a given store."
   {:added "0.1.0"}
-  [store data document variables]
-  (sp/-write-fragment store data document variables))
+  [store data document entity-ref]
+  (sp/-write-fragment store data document entity-ref))
 
 (defn- vars-and-opts [args]
   (let [variables   (when (map? (first args)) (first args))

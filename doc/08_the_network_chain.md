@@ -1,7 +1,9 @@
 # The Network Chain
 
-All Artemis queries require a client and all clients require a network chain.
-Here's what a network chain is and how you use it.
+We described the store that you pass to create an Artemis client in the
+last topic. You might recall, however, that we've also been passing a
+`:network-chain` option. This topic will cover what these are, how they're
+used, and how you can create your own network chains.
 
 When you call `query!` or `mutate!`, Artemis uses a chain of steps that let you
 configure your network requests. We call it a "network chain", and it's made up
@@ -11,6 +13,10 @@ A network step represents some action between calling `query!` or `mutate!` and
 sending the request to your GraphQL server.  For example, a network step might
 send the request via an HTTP client or WebSocket connection, or it could do
 something like log the request to the console or add an auth token.
+
+_It's important to consider that all Artemis queries require a client and all
+clients require a network chain. By default Artemis comes with an http-based
+network chain, which will cover in the sections below._
 
 ## Creating a Network Chain
 
@@ -30,10 +36,10 @@ For example, here's a basic logging step:
 ```
 
 The above example is pretty useless, however, because it's just logging our
-operation (query/mutation). And, in fact, it's invalid according the spec
-defined within Artemis. A network step should return -- you guessed it -- a
-core.async channel. Ultimately, that channel stands as the representation of
-things happening over the network.
+operation (query/mutation). And, in fact, it's invalid according to the spec
+defined within Artemis. A network step should return a core.async channel.
+Ultimately, that channel stands as the representation of things happening over
+the network.
 
 Let's update our example, then:
 
@@ -157,22 +163,23 @@ and it should cover a lot of your needs. Let's take a look at what our initial
 client creation code looked like:
 
 ```clojure
-(require '[artemis.core :as a]
-         '[artemis.network-steps.http :as http])
+(def graphcool-url "https://api.graph.cool/simple/v1/cjjh9nmy118fs0127i5t71oxe")
 
-(def net-chain (http/create-network-step "http://localhost:12345/"))
-(def client (a/create-client :network-chain net-chain))
+(def network-chain (http/create-network-step graphcool-url))
+
+(def store (mgs/create-store))
 ```
 
 So, now you can see that our network chain is really just a single step, the
-base http step that Artemis comes with. To further elucidate the concept of
-building a chain, let's re-implement our logging step, this time using our
-base http step as the next step:
+base HTTP step that Artemis comes with. To further elucidate the concept of
+building a chain, let's re-implement our logging step, this time including our
+HTTP step in the chain:
 
 ```clojure
-(require '[artemis.core :as a]
-         '[artemis.network-steps.protocols :refer [GQLNetworkStep]]
-         '[artemis.network-steps.http :as http])
+(ns app.core
+  (:require [artemis.core :as a]
+            [artemis.network-steps.protocols :refer [GQLNetworkStep]]
+            [artemis.network-steps.http :as http])
 
 (defn log-step [next-step]
   (reify
@@ -181,29 +188,13 @@ base http step as the next step:
       (.log js/console operation)
       (a/exec next-step operation context))))
 
-(defn http-step [uri]
-  (http/create-network-step uri))
+(def graphcool-url "https://api.graph.cool/simple/v1/cjjh9nmy118fs0127i5t71oxe")
 
-(def client (a/create-client :network-chain (-> (http-step "http://localhost:12345/")
+(def client (a/create-client :network-chain (-> (http/create-network-step graphcool-url)
                                                 log-step)))
 ```
-Great, now we can execute operations on our client and we should first see the
+Now we can execute operations on our client and we should first see the
 operation logged to our browser's console, and then executed over the network.
-
-```clojure
-(require '[artemis.document :refer [parse-document]])
-
-(def planet-info (parse-document "query planetInfo($id:ID!) { planet(id:$id) { id name } }"))
-
-(a/query! client
-          planet-info
-          {:id "cGxhbmV0czox"}
-          :fetch-policy :remote-only)
-```
-
-So, the network chain allows us to manage the execution of our GraphQL
-operations in a consistent manner. Let's now take a look at the second
-configuration parameter when creating our client: the local store.
 
 ### Options
 
