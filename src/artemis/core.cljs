@@ -115,7 +115,7 @@
 
 (s/fdef write
         :args (s/cat :store     ::store
-                     :data      ::data ; Figure out the right names for all of these things
+                     :data      ::data
                      :document  ::d/document
                      :variables ::variables)
         :ret  ::store)
@@ -408,7 +408,7 @@
                                       :document    document
                                       :variables   variables
                                       :optimistic? true}))
-           message   (result->message {:data result})
+           message   (result->message result)
            old-store @(:store client)]
        (when optimistic-result
          (l/log-store-before! old-store true)
@@ -501,7 +501,8 @@
                          unique ID.
   - `:context`           A map of context to pass along when executing the
                          network chain. Defaults to `{}`. "
-  {:added "0.1.0"}
+  {:added         "0.1.0"
+   :experimental? true}
   ([client document]
    (subscribe! client document {}))
   ([client document & args]

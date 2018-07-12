@@ -174,7 +174,7 @@
 
 (defmacro parse-document
   "Parses a GraphQL query string and emits an AST representation of the source
-  in EDN."
+  as Clojure data."
   {:added "0.1.0"}
   [source]
   (let [parsed (parse source)]
@@ -192,7 +192,8 @@
      (or (io/resource file) file))))
 
 (defmacro parse-document-files
-  "Parses GraphQL files and emits an AST representation of the source in EDN."
+  "Parses GraphQL files and emits an AST representation of the source as
+  Clojure data."
   {:added "0.1.0"}
   [& files]
   (let [document (string/join "\n" (map read-file files))]

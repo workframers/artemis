@@ -6,12 +6,8 @@
 (defrecord
   ^{:added "0.1.0"
     :doc   "This store requires that every entity meant to normalize for a
-           GraphQL query gets sent with the `__typename` field. It also expects
-           that a set of primary IDs for each type be given to the cache on
-           initialization. IDs are namespaced keys that are formatted
-           `:<typename>/<primary-key-field>`. If the necessary primary key
-           field isn't returned in a query, the cache will store the field with
-           a generic key and it will not be retrievable via a normal look up."}
+           GraphQL query resolves a unique value when called against the
+           store's `:id-fn`."}
   MapGraphStore
   [id-fn entities cache-redirects cache-key]
   sp/GQLStore
@@ -40,7 +36,9 @@
 (defn create-store
   "Returns a new `MapGraphStore` for the given parameters:
 
-  - `:id-attrs`        A set of keys to normalize on. Defaults to `#{}`.
+  - `:id-fn`           A function that will be passed an entity and should
+                       return a unique value that will be used as a reference
+                       to that entity. Defaults to `:id`.
   - `:entities`        A map of stored entities. Defaults to `{}`.
   - `:cache-redirects` A map of of field to function, that redirects the root
                        from whence the selection-set will be resolved. Defaults
