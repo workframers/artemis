@@ -3,6 +3,14 @@
             [shodan.console :as console]
             [diffit.map :refer [diff]]))
 
+(goog-define
+  ^:dynamic
+  ^boolean
+  *log-enabled* false)
+
+(defn- logging-enabled? ^boolean []
+  (and *log-enabled* goog.DEBUG))
+
 (def ^:private css-values
   {:light  "font-weight:lighter"
    :bold   "font-weight:bolder"
@@ -30,17 +38,17 @@
     (log-single! a b)))
 
 (defn log-end! []
-  (when goog.DEBUG (console/group-end)))
+  (when (logging-enabled?) (console/group-end)))
 
 (defn log-start! [kind document]
-  (when goog.DEBUG
+  (when (logging-enabled?)
     (console/group-start-collapsed "%cartemis.core/%s!"
                                    (css :light :grey)
                                    (name kind)
                                    (operation-names document))))
 
 (defn log-query! [document variables fetch-policy]
-  (when goog.DEBUG
+  (when (logging-enabled?)
     (log-group! "query info"
                 :document     document
                 :variables    variables
@@ -48,7 +56,7 @@
     (log-end!)))
 
 (defn log-mutation! [document variables]
-  (when goog.DEBUG
+  (when (logging-enabled?)
     (log-group! "query info"
                 :document  document
                 :variables variables)
@@ -56,12 +64,12 @@
 
 (defn log-store-before!
   [store & [optimistic?]]
-  (when goog.DEBUG
+  (when (logging-enabled?)
     (log-group! (str "store update" (when optimistic? " (optimistic)"))
                 :before store)))
 
 (defn log-store-after! [old-store store]
-  (when goog.DEBUG
+  (when (logging-enabled?)
     (log-single! :after store)
     (when-let [old-entities (:entities old-store)]
       (log-single! :entity-diff (diff old-entities
@@ -69,7 +77,7 @@
     (log-end!)))
 
 (defn log-store-local-only! [store]
-  (when goog.DEBUG
+  (when (logging-enabled?)
     (log-store-before! store)
     (console/info "%query with fetch-policy :local-only will never yield a store update"
                   (css :light :grey :italic))
