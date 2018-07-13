@@ -15,23 +15,29 @@
 (defrecord
   ^{:added "0.1.0"}
   Client
-  [store network-chain])
+  [store network-chain defaults])
 
+(s/def ::client #(instance? Client %))
 (s/def ::store #(satisfies? sp/GQLStore %))
 (s/def ::network-chain #(satisfies? np/GQLNetworkStep %))
-(s/def ::client #(instance? Client %))
+
+(s/def ::fetch-policy #{:no-cache :local-only :local-first :local-then-remote :remote-only})
+
+(s/def ::default-fetch-policy ::fetch-policy)
+(s/def ::defaults (s/keys :opt-un [::default-fetch-policy]))
 
 (s/fdef create-client
-        :args (s/cat :options (s/keys* :opt-un [::store ::network-chain]))
+        :args (s/cat :options (s/keys* :opt-un [::store ::network-chain ::defaults]))
         :ret  ::client)
 
 (defn create-client
-  "Returns a new `Client` specified by `:store` and `:network-chain`."
+  "Returns a new `Client` specified by `:store`, `:network-chain`, and
+  `:defaults`."
   {:added "0.1.0"}
-  [& {:keys [store network-chain]
+  [& {:keys [store network-chain defaults]
       :or   {store         (mgs/create-store)
              network-chain (http/create-network-step)}}]
-  (Client. (atom store) network-chain))
+  (Client. (atom store) network-chain defaults))
 
 (s/fdef store
         :args (s/cat :client ::client)
@@ -152,7 +158,6 @@
    (update client :store reset! (after-fn new-store))))
 
 (s/def ::out-chan ::chan)
-(s/def ::fetch-policy #{:no-cache :local-only :local-first :local-then-remote :remote-only})
 
 (s/fdef query!
         :args (s/alt
@@ -181,7 +186,7 @@
   - `:context`      A map of context to pass along when executing the network
                     chain. Defaults to `{}`.
   - `:fetch-policy` A keyword specifying the fetch policy _(see below)_.
-                    Defaults to `:local-only`.
+                    Defaults to the configured default or `:local-only`.
 
   The available fetch policies and corresponding implications are:
 
@@ -230,7 +235,7 @@
          {:keys [out-chan fetch-policy context]
           :or   {out-chan     (async/chan)
                  context      {}
-                 fetch-policy :local-only}} options
+                 fetch-policy (get-in client [:defaults :fetch-policy] :local-only)}} options
          old-store   @(:store client)
          local-read  #(read old-store
                             document

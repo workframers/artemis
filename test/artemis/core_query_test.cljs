@@ -7,6 +7,37 @@
 
 (def variables {:episode "The Empire Strikes Back"})
 
+(deftest query-default-fetch-policy
+  (testing "respects the configured default fetch policy"
+    (async done
+      (let [cache (atom {})]
+        (with-client
+          {:defaults       {:fetch-policy :remote-only}
+           :store-query-fn (fn [_ _ {:keys [episode]} _]
+                             {:data (get @cache episode)})
+           :store-write-fn (fn [this {:keys [data]} _ {:keys [episode]}]
+                             (reset! cache {episode data})
+                             this)}
+
+          ;; Default config is set
+          (is (= (get-in client [:defaults :fetch-policy]) :remote-only))
+
+          ;; No fetch-policy set, but expect a remote only query
+          (let [result-chan (core/query! client tu/query-doc variables)]
+            (go (let [local-result  (<! result-chan)]
+                  (is (nil? (:data local-result)))
+                  (is (true? (:in-flight? local-result))))
+
+                ;; Putting a fake remote result
+                (put-result! {:data "Luke Skywalker"})
+
+                (let [remote-result (<! result-chan)
+                      closed?       (nil? (<! result-chan))]
+                  (is (= (:data remote-result) "Luke Skywalker"))
+                  (is (false? (:in-flight? remote-result)))
+                  (is closed?)
+                  (done)))))))))
+
 (deftest query-no-cache
   (async done
     (let [cache (atom {})]
