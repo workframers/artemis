@@ -132,7 +132,7 @@ previously saw, and the second which is something like:
 If we inspect each of the messages, it should be apparent what each tells us
 about the state of our query at the time the message was put onto the channel.
 
-The first message let's us know that we don't have any data available, and
+The first message lets us know that we don't have any data available, and
 that's because our network status is currently `:fetching`, meaning we're
 getting the data. You'll also notice that `:in-flight?` is `true` for the first
 message, so we know our query is currently over the wire. The second message,
@@ -168,7 +168,7 @@ Let's start off by creating a mutation document:
       }
     }"))
 ```
-Now, just like with `query!`, we pass our document to the `mutate!`. Like it's
+Now, just like with `query!`, we pass our document to the `mutate!`. Like its
 counterpart function, `mutate!` also returns a channel, so we'll want to take
 messages off it.
 
@@ -180,7 +180,7 @@ messages off it.
       (recur))))
 ```
 
-Because, GraphQL mutations also include the desired return data, the messages
+Because GraphQL mutations also include the desired return data, the messages
 that Artemis puts on your channel are pretty much the same as those you'll get
 when a running a query -- you'll have access to the returned `:data`, any
 `:errors`, as well as meta-data, like `:in-flight?` and `:network-status`.
