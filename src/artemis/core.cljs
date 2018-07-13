@@ -518,3 +518,16 @@
            msg-txf         (map (comp assoc-variables result->message))]
        (go (async/pipeline 1 out-chan msg-txf results-chan))
        out-chan))))
+
+(defn watch-store
+  "Given a client and a callback, will call the callback whenever there's a
+  change to the client's store with the old store state and the new store
+  state as arguments. Returns an unwatch function."
+  {:added "0.1.0"}
+  [client watch-cb]
+  (let [store (:store client)
+        kw    (keyword *ns* (gensym "store-change-"))]
+    (add-watch store ::store-change-watcher
+               (fn [_ _ old-store new-store]
+                 (watch-cb old-store new-store)))
+    #(remove-watch store kw)))
