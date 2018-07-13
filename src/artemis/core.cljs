@@ -88,9 +88,10 @@
   [network-chain operation context]
   (np/-exec network-chain operation context))
 
-(s/def ::data any?)
+(s/def ::data (s/nilable any?))
 (s/def ::return-partial? boolean?)
 (s/def ::result (s/keys :req-un [::data] :opt-un [::return-partial?]))
+(s/def ::write-data (s/keys :req-in [::data]))
 (s/def ::entity-ref any?)
 
 (s/fdef read
@@ -98,7 +99,7 @@
                      :document  ::d/document
                      :variables ::variables
                      :options   (s/keys* :opt-un [::return-partial?]))
-        :ret  (s/nilable ::result))
+        :ret  ::result)
 
 (defn read
   "Calls `artemis.stores.protocols/-read` on a given store."
@@ -111,7 +112,7 @@
                      :document   ::d/document
                      :entity-ref ::entity-ref
                      :options    (s/keys* :opt-un [::return-partial?]))
-        :ret  (s/nilable ::result))
+        :ret  ::result)
 
 (defn read-fragment
   "Calls `artemis.stores.protocols/-read-fragment` on a given store."
@@ -121,7 +122,7 @@
 
 (s/fdef write
         :args (s/cat :store     ::store
-                     :data      ::data
+                     :data      ::write-data
                      :document  ::d/document
                      :variables ::variables)
         :ret  ::store)
@@ -134,7 +135,7 @@
 
 (s/fdef write-fragment
         :args (s/cat :store      ::store
-                     :data       ::data
+                     :data       ::write-data
                      :document   ::d/document
                      :entity-ref ::entity-ref)
         :ret  ::store)
