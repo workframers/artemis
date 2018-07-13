@@ -85,6 +85,5 @@
              {:output-to       "target/main.js"
               :output-dir      "target"
               :main            artemis.test-runner
-              :optimizations   :simple
-              :closure-defines {"goog.DEBUG" false}
+              :optimizations   :none
               :preloads        []}}}}}})

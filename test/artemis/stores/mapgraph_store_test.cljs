@@ -911,7 +911,7 @@
           initial-store (create-store :entities entities
                                       :cache-key ::cache)
           old-ent (get (:entities initial-store) entity)
-          new-store (a/write-fragment initial-store write-data fragment entity)
+          new-store (a/write-fragment initial-store {:data write-data} fragment entity)
           new-ent (get (:entities new-store) entity)]
       (is (= new-ent (merge old-ent new-ent))))))
 

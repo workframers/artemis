@@ -15,23 +15,29 @@
 (defrecord
   ^{:added "0.1.0"}
   Client
-  [store network-chain])
+  [store network-chain defaults])
 
+(s/def ::client #(instance? Client %))
 (s/def ::store #(satisfies? sp/GQLStore %))
 (s/def ::network-chain #(satisfies? np/GQLNetworkStep %))
-(s/def ::client #(instance? Client %))
+
+(s/def ::fetch-policy #{:no-cache :local-only :local-first :local-then-remote :remote-only})
+
+(s/def ::default-fetch-policy ::fetch-policy)
+(s/def ::defaults (s/keys :opt-un [::default-fetch-policy]))
 
 (s/fdef create-client
-        :args (s/cat :options (s/keys* :opt-un [::store ::network-chain]))
+        :args (s/cat :options (s/keys* :opt-un [::store ::network-chain ::defaults]))
         :ret  ::client)
 
 (defn create-client
-  "Returns a new `Client` specified by `:store` and `:network-chain`."
+  "Returns a new `Client` specified by `:store`, `:network-chain`, and
+  `:defaults`."
   {:added "0.1.0"}
-  [& {:keys [store network-chain]
+  [& {:keys [store network-chain defaults]
       :or   {store         (mgs/create-store)
              network-chain (http/create-network-step)}}]
-  (Client. (atom store) network-chain))
+  (Client. (atom store) network-chain defaults))
 
 (s/fdef store
         :args (s/cat :client ::client)
@@ -82,9 +88,10 @@
   [network-chain operation context]
   (np/-exec network-chain operation context))
 
-(s/def ::data any?)
+(s/def ::data (s/nilable any?))
 (s/def ::return-partial? boolean?)
 (s/def ::result (s/keys :req-un [::data] :opt-un [::return-partial?]))
+(s/def ::write-data (s/keys :req-in [::data]))
 (s/def ::entity-ref any?)
 
 (s/fdef read
@@ -92,7 +99,7 @@
                      :document  ::d/document
                      :variables ::variables
                      :options   (s/keys* :opt-un [::return-partial?]))
-        :ret  (s/nilable ::result))
+        :ret  ::result)
 
 (defn read
   "Calls `artemis.stores.protocols/-read` on a given store."
@@ -105,7 +112,7 @@
                      :document   ::d/document
                      :entity-ref ::entity-ref
                      :options    (s/keys* :opt-un [::return-partial?]))
-        :ret  (s/nilable ::result))
+        :ret  ::result)
 
 (defn read-fragment
   "Calls `artemis.stores.protocols/-read-fragment` on a given store."
@@ -115,7 +122,7 @@
 
 (s/fdef write
         :args (s/cat :store     ::store
-                     :data      ::data
+                     :data      ::write-data
                      :document  ::d/document
                      :variables ::variables)
         :ret  ::store)
@@ -128,7 +135,7 @@
 
 (s/fdef write-fragment
         :args (s/cat :store      ::store
-                     :data       ::data
+                     :data       ::write-data
                      :document   ::d/document
                      :entity-ref ::entity-ref)
         :ret  ::store)
@@ -152,7 +159,6 @@
    (update client :store reset! (after-fn new-store))))
 
 (s/def ::out-chan ::chan)
-(s/def ::fetch-policy #{:no-cache :local-only :local-first :local-then-remote :remote-only})
 
 (s/fdef query!
         :args (s/alt
@@ -181,7 +187,7 @@
   - `:context`      A map of context to pass along when executing the network
                     chain. Defaults to `{}`.
   - `:fetch-policy` A keyword specifying the fetch policy _(see below)_.
-                    Defaults to `:local-only`.
+                    Defaults to the configured default or `:local-only`.
 
   The available fetch policies and corresponding implications are:
 
@@ -230,7 +236,7 @@
          {:keys [out-chan fetch-policy context]
           :or   {out-chan     (async/chan)
                  context      {}
-                 fetch-policy :local-only}} options
+                 fetch-policy (get-in client [:defaults :fetch-policy] :local-only)}} options
          old-store   @(:store client)
          local-read  #(read old-store
                             document
@@ -518,3 +524,16 @@
            msg-txf         (map (comp assoc-variables result->message))]
        (go (async/pipeline 1 out-chan msg-txf results-chan))
        out-chan))))
+
+(defn watch-store
+  "Given a client and a callback, will call the callback whenever there's a
+  change to the client's store with the old store state and the new store
+  state as arguments. Returns an unwatch function."
+  {:added "0.1.0"}
+  [client watch-cb]
+  (let [store (:store client)
+        kw    (keyword *ns* (gensym "store-change-"))]
+    (add-watch store ::store-change-watcher
+               (fn [_ _ old-store new-store]
+                 (watch-cb old-store new-store)))
+    #(remove-watch store kw)))

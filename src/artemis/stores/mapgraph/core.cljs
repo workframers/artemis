@@ -21,7 +21,7 @@
       this))
   (-write-fragment [this data document entity-ref]
     (if (seq data)
-      (write-to-entity document data entity-ref this)
+      (write-to-entity document (:data data) entity-ref this)
       this)))
 
 (defn store?  ;todo: figure out how to use this function in other namespaces without circular deps issues
