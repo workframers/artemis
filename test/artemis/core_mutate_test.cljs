@@ -45,9 +45,10 @@
        {:store-write-fn store-write}
        (let [result-chan (core/mutate! client tu/mutation-doc variables
                                       :optimistic-result
-                                      {:createReview
-                                       {:stars 4
-                                        :commentary "This is a great movie!"}})]
+                                      {:data
+                                       {:createReview
+                                        {:stars 4
+                                         :commentary "This is a great movie!"}}})]
          (go (let [local-result (<! result-chan)]
                (is (= (:data local-result) {:createReview {:stars 4 :commentary "This is a great movie!"}}))
                (is (= (:variables local-result) variables))
@@ -97,9 +98,10 @@
        {:store-write-fn store-write}
        (let [result-chan (core/mutate! client tu/mutation-doc variables
                                        :optimistic-result
-                                       {:createReview
-                                        {:stars 4
-                                        :commentary "This is a great movie!"}}
+                                       {:data
+                                        {:createReview
+                                         {:stars 4
+                                          :commentary "This is a great movie!"}}}
                                        :before-write (hook-fn :before :result)
                                        :after-write  (hook-fn :after :store))]
          (go (let [_ (<! result-chan)]

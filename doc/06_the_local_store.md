@@ -1,27 +1,20 @@
 # The Local Store
 
-Until now we've been making all of our queries with the `:fetch-policy` set to
-`:remote-only`. What the heck is a fetch policy anyways? Well, a fetch policy
-tells our client how we want it to make queries in regards to our remote
-GraphQL server and the local store we specify when creating our client.
-
-Just like we set a `:network-chain` option when we create our client, we can
-also set a `:store` option. For all queries where the fetch policy is anything
-but `:remote-only`, our client will attempt to query the local store instead
-of, or in addition to our server. Before going further into fetch policies,
-let's look at what a store is.
+When we create our Artemis client we usually pass a `:store` option. The store
+is a local cache of the results of GraphQL queries. Depending on the fetch
+policy we set, Artemis might try to use the cache to resolve the data being
+queried. Let's look at what a store is.
 
 ## Creating a Store
 
-The `GQLStore` protocol is an abstraction defining a local store where that we
-can locally execute operations against. As you're probably aware, local stores
-allow us to improve the user experience by creating an app that feels snappier.
-Each store implements `-read` and `-write` functions, which are, respectively,
-called by `artemis.core/read` and `artemis.core/write`. Our client will call
-each of `read` and `write` on the store at specific times, expecting that the
-store has correctly implemented them.
+The `GQLStore` protocol is an abstraction defining a local store that we can
+locally execute operations against.  Each store implements `-read`,`-write`,
+`-read-fragment`, and `-write-fragment` functions, which are, respectively,
+called by `artemis.core/read`, `artemis.core/write`, `artemis.core/read`, and
+`artemis.core/write`. Our client will call each of these functions on the store
+at specific times, expecting that the store has correctly implemented them.
 
-### Reading and Writing
+## Reading and Writing
 
 When we define our store, the `-read` implementation will be called with the
 parsed GraphQL document, the variables map, and a boolean `return-partial?` as
@@ -36,13 +29,17 @@ store isn't able to fulfill the query, it should return `nil`.
 The `-write` implementation is responsible for taking some data and writing it
 to a local cache, then returning the updated store.
 
-As long as you implement both `-read` and `-write` you can build any kind of
-store you'd like -- DataScript, IndexedDB, Local Storage, whatever you want --
+`-read-fragment` and `-write-fragment` work pretty much the same way, but also
+take an argument that is a reference to a particular node we want to update.
+What that reference looks like is up to the store's implementation.
+
+As long as you implement these four functions you can build any kind of store
+you'd like -- DataScript, IndexedDB, Local Storage, whatever you want --
 Artemis will call those functions with the right information at the right
 times.
 
-Check out the [API docs](./artemis.stores.protocols.html) for more on implement
-reading and writing.
+Check out the [API docs](./artemis.stores.protocols.html) for more on creating
+your own store.
 
 ## Mapgraph Store
 
@@ -50,196 +47,203 @@ While you can build your own `GQLStore`, it can potentially be complicated to
 implement, so Artemis comes with a default store built atop
 [Mapgraph](https://github.com/stuartsierra/mapgraph).
 
-By using Mapgraph, the default store presents a normalized, in-memory database
-of linked entities. We can link those entities by specifying attributes to
-normalize on. We use the `:id-attrs` option to do so:
+The default store presents a normalized, in-memory database of linked entities.
+All entities are flatly-stored based on a reference value; nested entities are
+replaced with a reference lookup.
+
+We can specify the reference values for our entities by passing a `:id-fn` when
+creating our store. For example, to use each entity's `:id` as the lookup we
+can do:
 
 ```clojure
-(require '[artemis.core :as a]
-         '[artemis.stores.mapgraph.core :as mgs])
-
-(def mapgraph-store (mgs/create-store :id-attrs #{:Planet/id}))
-(def client (a/create-client :store mapgraph-store))
+(create-store :id-fn (fn [entity] (:id entity)))
 ```
 
-`:id-attrs` is a set of namespaced keywords formatted
-`:<typename>/<primary-key-field>`. The typename is the value for a particular
-entity's `__typename` in a GraphQL query. That means that when using the
-Mapgraph store, in order to get the benefits of normalization, we need to set
-the keyword we want to normalize on and include the `__typename` field when
-querying for those entities. The planet example we've been using so far would
-look like this:
+It's important to note that lookups should be unique across entities, so make
+sure you're `id-fn` returns a value that is unique to the entity it's passed.
+One approach is to use UIDs. It's also common to prefix the ID with the
+entities `__typename` value. Here's an example of the second approach:
 
 ```clojure
-(require '[artemis.core :as a]
-         '[artemis.document :refer [parse-document]]
-         '[artemis.stores.mapgraph.core :as mgs])
-
-(def mapgraph-store (mgs/create-store :id-attrs #{:Planet/id}))
-(def client (a/create-client :store mapgraph-store))
-
-(def planet-info
-  (parse-document
-   "query planetInfo($id:ID!) {
-     planet(id:$id) {
-       __typename
-       id
-       name
-     }
-   }"))
+(create-store :id-fn (fn [entity] (str (:__typename entity) (:id entity))))
 ```
 
-Adding `__typename` to every selection set would get tedious. Artemis, however,
-automatically includes the `__typename` field when querying, so we'll just
-have to tell it what typenames we want to normalize on in order to correctly
-store our results in our Mapgraph store. With that done, we can switch our
-fetch policy to take advantage of this.
+_The default `:id-fn` is `:id`, so if the ID value is unique across all of your
+entities, you may not even need to specify an `:id-fn`._
 
-Let's move back to our application code and set planet ID to a primary key,
-then set the fetch policy to `:local-then-remote`. For reference, here's all
-the code:
+### Automatic Cache Updates
+
+Because our entities are normalized, we often times get correct cache updates
+for free after we execute queries and mutations. Let’s say we perform the
+following query:
+
+```graphql
+{
+  post(id: 1) {
+    id
+    score
+  }
+}
+```
+
+Then we execute a mutation:
+
+```graphql
+mutation {
+  upvotePost(id: 1) {
+    id
+    score
+  }
+}
+```
+The ID value on both results matches up, so the score field will automatically
+be updated across our entire UI.
+
+### Cache Redirects
+In some cases, a query requests data that already exists in the store under a
+different key. A very common example of this is when your UI has a list
+view and a detail view that both use the same data. The list view might run the
+following query:
+
+```graphql
+{
+  books {
+    id
+    title
+    abstract
+  }
+}
+```
+
+When a specific book is selected, the detail view displays an individual item
+using this query:
+
+```graphql
+{
+  book(id: $id) {
+    id
+    title
+    abstract
+  }
+}
+```
+
+We know that the data is already in the client cache, but because it's been
+requested as part of a different query, the store doesn't know that. In order
+to tell the store where to look for the data, we can point it in the right
+direction using cache redirects.
+
+When creating our store we can supply a map of redirects via the
+`:cache-redirects` option. Each key in the map is a field name that we want
+to redirect whenever the store can't resolve a result, and the value to the key
+is a function that returns a the reference we want to be redirected to. The
+function will be called with a map that contains the following:
 
 ```clojure
-(ns my-app.view
-  (:require-macros [cljs.core.async.macros :refer [go go-loop]])
-  (:require [artemis.core :as a]
-            [artemis.network-steps.http :as http]
-            [artemis.stores.mapgraph.core :as mgs]
-            [artemis.document :refer [parse-document]]
-            [reagent.core :as r]
-            [cljs.core.async :refer [<!]]))
-
-(def gql-result (reagent/atom []))
-(def net-chain (http/create-network-step "http://localhost:12345/"))
-(def mg-store (mgs/create-store :id-attrs #{:Planet/id}))
-(def client (a/create-client :network-chain net-chain
-                             :store mg-store)) ;; Add the store here!
-
-(def planet-info
-  (parse-document
-   "query planetInfo($id:ID!) {
-     planet(id:$id) {
-       id
-       name
-      }
-    }"))
-
-(defn my-app []
-  (let [message (last @gql-result)]
-    [:div
-     (if (and (nil? (:data message)) (:in-flight? message))
-       "Loading..."
-       (if-let [errors (:errors message)]
-         [:div
-          "Something went wrong!"
-          [:ul
-           (for [e errors]
-             [:li {:key (hash e)}
-              (str e)])]]
-         [:div
-          "The planet is: "
-          (-> message :data :planet :name)]))]))
-
-(let [planet-info-chan (a/query! client
-                                 planet-info
-                                 {:id "cGxhbmV0czox"}
-                                 :fetch-policy :local-then-remote)] ;; This part changed!
-  (go-loop []
-    (when-let [r (<! planet-info-chan)]
-      (swap! gql-result conj r)
-      (recur))))
-
-(defn ^:export main []
-  (r/render-component [my-app]
-                      (.getElementById js/document "app")))
+{:store         <the client's store>
+ :parent-entity <the parent of entity for the field we're on>
+ :variables     <the map of GraphQL variables>}
 ```
 
-If we refresh our browser, everything should feel the same. But, under the hood
-the Mapgraph store has stored the Tatooine planet as a normalized entity based
-off of the ID `"cGxhbmV0czox"`. This means the any time we get a GraphQL result
-that references a planet with the ID `"cGxhbmV0czox"` it will be reconciled
-with the values we've already got at the primary key.
-
-Additionally, we can now run queries against that local store. In fact, we're
-already doing that by changing our fetch policy to `:local-then-remote`, but
-we'll get to that in a second.
-
-Add this to bit of temporary code to your application:
+Assuming that our store is normalizing on the `:id` field, our book entity
+would be stored by ID. With that said, let's take our example above and
+implement a cache redirect for the `book` node:
 
 ```clojure
-(defn ^:export local-query! []
-  (let [c (a/query! client
-                    planet-info
-                    {:id "cGxhbmV0czox"}
-                    :fetch-policy :local-only)]
-    (go (let [x (<! c)]
-          (.log js/console x))))) ;; If you don't have Clojure printing tools installed,
-                                  ;; you may want to wrap `x` in `(clj->js)`
+(def cache-redirects
+  {:book (fn [{:keys [variables]}]
+           (:id variables))})
 
+(create-store :cache-redirects cache-redirects)
 ```
 
-Now, in your browser invoke `my_app.view.local_query_BANG_()`. You should see
-a message printed to your console. If you inspect that message, you'll see that
-the `:planet` value for our `:data` key is Tatooine, as to be expected. However,
-you'll see that the `:in-flight?` value is `false` and the `:network-status` is
-`:ready`. Open up your network tab and re-run the same function; no query is
-sent over the wire, yet we're able to successfully satisfy our GraphQL query --
-all from the local Mapgraph store! This happens because in our `local-query!`
-function we've set the fetch policy to `:local-only`, so the Artemis client
-will only try to run the query against the local store.
+What we've done above is tell our store that if we're not able to resolve the
+`book` field on any query, run the redirect function specified (which returns
+the `:id` variables we're querying with) and try to query the selection set
+for book from that point in the cache.
 
-Fetch policies allow us to tell the client how and where we want it to execute
-our queries. We can choose the right policy depending on our application's
-needs. For example, if we have some data that we absolutely know is cached in
-our local store and is highly unlikely to change, we may want to save on
-bandwidth by setting the policy to `:local-only`. Conversely, if we have
-something that is highly likely to change we may want to use `:remote-only`,
-meaning the client will skip the local store and always go directly to the
-server. Again, Artemis allows you to choose the right policy for the job.
+### Partial Returns
+Sometimes it's useful to display partially available data while waiting for
+the remaining data to be loaded. For example, you might query for a list of
+books using:
 
-You can go ahead and delete the temporary function we wrote, or continue
-playing around with different fetch policies. They're enumerated in the final
-section below.
+```graphql
+{
+  books {
+    id
+    title
+  }
+}
+```
 
-## Mutations Against the Local Store
+If the user clicks on a specific book, you want to get more information for
+that book:
 
-Whenever we run `mutate!`, Artemis will call `write` on the local store,
-passing it the mutation document. This allows the store to stay up-to-date with
-what's going on remotely. By default, Artemis will only attempt to write to the
-local store after a successful remote write. If you'd like the store to perform
-its write optimistically, you can pass a value to the `:optimistic-result`
-option when calling `mutate!`. You can read more about that in the next guide.
+```graphql
+{
+  book(id: $id) {
+    id
+    title
+    abstract
+    author {
+      id
+      firstName
+      lastName
+    }
+  }
+}
+```
 
-## Fetch Policies
+Depending on how your UI is designed, it might be ok to start rendering the
+title of the book (since it's already been cached) while the remaining
+information is being fetched.
 
-#### `:local-only`
-A query will never be executed remotely. Instead, the query will only run
-against the local store. If the query can't be satisfied locally, an error
-message will be put on the return channel. This fetch policy allows you to only
-interact with data in your local store without making any network requests
-which keeps your component fast, but means your local data might not be
-consistent with what is on the server. For this reason, this policy should only
-be used on data that is highly unlikely to change, or is regularly being
-refreshed.
+By default, our store will only return data for a query that it's able to
+fulfill entirely. You can, however, pass a `:return-partial? true` option
+when reading data:
 
-#### `:local-first`
-Will run a query against the local store first. The result of the local query
-will be put on the return channel. If that result is a non-nil value, then a
-remote query will not be executed. If the result is `nil`, meaning the data
-isn't available locally, a remote query will be executed. This fetch policy
-aims to minimize the number of network requests sent. The same cautions around
-stale data that applied to the `:local-only` policy do so for this policy as
-well.
+```clojure
+(a/query! client book-doc {:id 1} :return-partial? true)
+```
 
-#### `:local-then-remote`
-Like the `:local-first` policy, this will run a query against the local store
-first and put the result on the return channel.  However, unlike
-`:local-first`, a remote query will always be executed regardless of the value
-of the local result. This fetch policy optimizes for users getting a quick
-response while also trying to keep cached data consistent with your remote data
-at the cost of extra network requests.
+You can also pass `:return-partial?` when using `read` and `read-fragment`:
 
-#### `:remote-only`
-This fetch policy will never run against the local store.  Instead, it will
-always execute a remote query. This policy optimizes for data consistency with
-the server, but at the cost of an instant response.
+```clojure
+(a/read store book-doc {:id 1} :return-partial? true)
+(a/read-fragment store book-fragment-doc 1 :return-partial? true)
+```
+
+### Clearing the Store
+In some cases you may want to clear your Mapgraph store. You can easily do this
+by calling `artemis.stores.mapgraph.core/clear`. The `clear` function will
+clear out all cached entities.
+
+### Serializing the Cache
+The entities stored in the Mapgraph cache are just regular Clojure data, so we
+can easily serialize it by calling `pr-str`.
+
+```clojure
+(pr-str (:entities (a/store client)))
+```
+
+If we wanted to store our entities to localStorage everytime our store changes,
+for example, we can use `pr-str` in combination with the `watch-store`
+function:
+
+```clojure
+(a/watch-store client
+              (fn [old-store new-store]
+                (.setItem js/localStorage
+                          "app-entities"
+                          (pr-str (:entities new-store)))))
+```
+
+Then we could hydrate our cache by passing in our entities at bootstrap:
+
+```clojure
+(create-store :entities (or (.getItem js/localStorage "app-entities") {}))
+```
+
+_If you're going to persist the cache on every update, it would be wise to
+debounce your function. The Google Closure library that comes within ClojureScript
+provides a nice option via the `goog.async.Debouncer` class._
