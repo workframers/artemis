@@ -17,3 +17,6 @@ pom.xml.asc
 *.DS_Store
 /resources/.github-token
 node_modules/
+/out
+.cpcache
+.shadow

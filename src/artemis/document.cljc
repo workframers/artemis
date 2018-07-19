@@ -61,8 +61,8 @@
 (defn compose
   "Compose multiple parsed documents together to create a single document."
   {:added "0.1.0"}
-  [doc & docs]
-  (apply merge-with into doc docs))
+  [root-doc & docs]
+  (apply merge-with into root-doc docs))
 
 (s/fdef with-mapping
         :args (s/cat :doc     ::document

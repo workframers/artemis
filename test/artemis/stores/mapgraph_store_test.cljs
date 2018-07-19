@@ -7,7 +7,7 @@
 (def test-queries
   {:basic
    {:query    (d/parse-document
-                "{
+               "{
                    id
                    stringField
                    numberField
@@ -26,7 +26,7 @@
 
    :args
    {:query    (d/parse-document
-                "{
+               "{
                    id
                    stringField(arg: 1)
                    numberField
@@ -45,7 +45,7 @@
 
    :aliased
    {:query    (d/parse-document
-                "{
+               "{
                    id
                    aliasedField: stringField
                    numberField
@@ -64,7 +64,7 @@
 
    :aliased-with-args
    {:query    (d/parse-document
-                "{
+               "{
                    id
                    aliasedField1: stringField(arg:1)
                    aliasedField2: stringField(arg:2)
@@ -86,7 +86,7 @@
 
    :with-vars
    {:query      (d/parse-document
-                  "{
+                 "{
                      id
                      stringField(arg: $stringArg)
                      numberField(intArg: $intArg, floatArg: $floatArg)
@@ -108,7 +108,7 @@
 
    :default-vars
    {:query      (d/parse-document
-                  "query someBigQuery(
+                 "query someBigQuery(
                      $stringArg: String = \"This is a default string\"
                      $intArg: Int
                      $floatArg: Float
@@ -133,7 +133,7 @@
 
    :directives
    {:query    (d/parse-document
-                "{
+               "{
                    id
                    firstName @include(if: true)
                    lastName @upperCase
@@ -152,7 +152,7 @@
 
    :nested
    {:query    (d/parse-document
-                "{
+               "{
                    id
                    stringField
                    numberField
@@ -187,7 +187,7 @@
 
    :nested-no-id
    {:query    (d/parse-document
-                "{
+               "{
                    id
                    stringField
                    numberField
@@ -220,7 +220,7 @@
 
    :nested-with-args
    {:query    (d/parse-document
-                "{
+               "{
                    id
                    stringField
                    numberField
@@ -253,7 +253,7 @@
 
    :nested-array
    {:query    (d/parse-document
-                "{
+               "{
                    id
                    stringField
                    numberField
@@ -298,7 +298,7 @@
 
    :nested-array-with-null
    {:query    (d/parse-document
-                "{
+               "{
                    id
                    stringField
                    numberField
@@ -334,7 +334,7 @@
 
    :deeply-nested-array
    {:query    (d/parse-document
-                "{
+               "{
                    id
                    stringField
                    numberField
@@ -420,7 +420,7 @@
 
    :nested-array-without-ids
    {:query    (d/parse-document
-                "{
+               "{
                    id
                    stringField
                    numberField
@@ -462,7 +462,7 @@
 
    :nested-array-with-nulls-and-no-ids
    {:query    (d/parse-document
-                "{
+               "{
                    id
                    stringField
                    numberField
@@ -497,7 +497,7 @@
 
    :simple-array
    {:query    (d/parse-document
-                "{
+               "{
                    id
                    stringField
                    numberField
@@ -519,7 +519,7 @@
 
    :simple-array-with-nulls
    {:query    (d/parse-document
-                "{
+               "{
                    id
                    stringField
                    numberField
@@ -541,7 +541,7 @@
 
    :obj-in-different-paths
    {:query    (d/parse-document
-                "{
+               "{
                    id
                    object1 {
                      id
@@ -570,7 +570,7 @@
 
    :obj-in-different-array-paths
    {:query    (d/parse-document
-                "{
+               "{
                    id
                    array1 {
                      id
@@ -619,7 +619,7 @@
 
    :nested-object-returning-null
    {:query    (d/parse-document
-                "{
+               "{
                    id
                    stringField
                    numberField
@@ -644,9 +644,9 @@
                 :nestedObj   nil
                 ::cache      "root"}}}
 
-     :union-array
-     {:query    (d/parse-document
-                  "{
+   :union-array
+   {:query    (d/parse-document
+               "{
                      search(text: \"a\") {
                        ... on object {
                          id
@@ -660,29 +660,29 @@
                        }
                      }
                    }")
-      :result   {:search
-                 [{:id          "abcd"
-                   :stringField "this is a string"
-                   :__typename  "object"}
-                  {:id          "efgh"
-                   :numberField 3
-                   :__typename  "otherobject"}]}
-      :entities {"root"
-                 {"search({\"text\":\"a\"})" [{:artemis.mapgraph/ref "abcd"}
-                                              {:artemis.mapgraph/ref "efgh"}]
-                  ::cache                    "root"}
-                 "abcd"
-                 {:id          "abcd"
-                  :stringField "this is a string"
-                  :__typename  "object"}
-                 "efgh"
-                 {:id          "efgh"
-                  :numberField 3
-                  :__typename  "otherobject"}}}
+    :result   {:search
+               [{:id          "abcd"
+                 :stringField "this is a string"
+                 :__typename  "object"}
+                {:id          "efgh"
+                 :numberField 3
+                 :__typename  "otherobject"}]}
+    :entities {"root"
+               {"search({\"text\":\"a\"})" [{:artemis.mapgraph/ref "abcd"}
+                                            {:artemis.mapgraph/ref "efgh"}]
+                ::cache                    "root"}
+               "abcd"
+               {:id          "abcd"
+                :stringField "this is a string"
+                :__typename  "object"}
+               "efgh"
+               {:id          "efgh"
+                :numberField 3
+                :__typename  "otherobject"}}}
 
-     :union-array-no-id
-     {:query    (d/parse-document
-                  "{
+   :union-array-no-id
+   {:query    (d/parse-document
+               "{
                      search(text: \"a\") {
                        ... on someobject {
                          stringField
@@ -690,27 +690,27 @@
                        }
                      }
                    }")
-      :result   {:search
-                 [{:stringField "this is a string"
-                   :__typename  "someobject"}
-                  {:stringField "this is another string"
-                   :__typename  "someobject"}]}
-      :entities {"root"
-                 {"search({\"text\":\"a\"})" [{:artemis.mapgraph/ref "root.search({\"text\":\"a\"}).0"}
-                                              {:artemis.mapgraph/ref "root.search({\"text\":\"a\"}).1"}]
-                  ::cache                    "root"}
-                 "root.search({\"text\":\"a\"}).0"
-                 {:stringField "this is a string"
-                  :__typename  "someobject"
-                  ::cache      "root.search({\"text\":\"a\"}).0"}
-                 "root.search({\"text\":\"a\"}).1"
-                 {:stringField "this is another string"
-                  :__typename  "someobject"
-                  ::cache      "root.search({\"text\":\"a\"}).1"}}}
+    :result   {:search
+               [{:stringField "this is a string"
+                 :__typename  "someobject"}
+                {:stringField "this is another string"
+                 :__typename  "someobject"}]}
+    :entities {"root"
+               {"search({\"text\":\"a\"})" [{:artemis.mapgraph/ref "root.search({\"text\":\"a\"}).0"}
+                                            {:artemis.mapgraph/ref "root.search({\"text\":\"a\"}).1"}]
+                ::cache                    "root"}
+               "root.search({\"text\":\"a\"}).0"
+               {:stringField "this is a string"
+                :__typename  "someobject"
+                ::cache      "root.search({\"text\":\"a\"}).0"}
+               "root.search({\"text\":\"a\"}).1"
+               {:stringField "this is another string"
+                :__typename  "someobject"
+                ::cache      "root.search({\"text\":\"a\"}).1"}}}
 
-     :nested-union
-     {:query    (d/parse-document
-                  "{
+   :nested-union
+   {:query    (d/parse-document
+               "{
                      id
                      stringField
                      unionObj {
@@ -727,26 +727,26 @@
                        }
                      }
                    }")
-      :result   {:id          "a"
-                 :stringField "this is a string"
-                 :unionObj    {:id          "abcd"
-                               :stringField "this is a string"
-                               :numberField 3
-                               :__typename  "object"}}
-      :entities {"root"
-                 {:id          "a"
-                  :stringField "this is a string"
-                  :unionObj    {:artemis.mapgraph/ref "abcd"}
-                  ::cache      "root"}
-                 "abcd"
-                 {:id          "abcd"
-                  :stringField "this is a string"
-                  :numberField 3
-                  :__typename  "object"}}}
+    :result   {:id          "a"
+               :stringField "this is a string"
+               :unionObj    {:id          "abcd"
+                             :stringField "this is a string"
+                             :numberField 3
+                             :__typename  "object"}}
+    :entities {"root"
+               {:id          "a"
+                :stringField "this is a string"
+                :unionObj    {:artemis.mapgraph/ref "abcd"}
+                ::cache      "root"}
+               "abcd"
+               {:id          "abcd"
+                :stringField "this is a string"
+                :numberField 3
+                :__typename  "object"}}}
 
-     :nested-union-no-id
-     {:query    (d/parse-document
-                  "{
+   :nested-union-no-id
+   {:query    (d/parse-document
+               "{
                      id
                      stringField
                      unionObj {
@@ -761,25 +761,25 @@
                        }
                      }
                    }")
-      :result   {:id          "a"
-                 :stringField "this is a string"
-                 :unionObj    {:stringField "this is a string"
-                               :numberField 3
-                               :__typename  "someobject"}}
-      :entities {"root"
-                 {:id          "a"
-                  :stringField "this is a string"
-                  :unionObj    {:artemis.mapgraph/ref "root.unionObj"}
-                  ::cache      "root"}
-                 "root.unionObj"
-                 {:stringField "this is a string"
-                  :numberField 3
-                  :__typename  "someobject"
-                  ::cache      "root.unionObj"}}}
+    :result   {:id          "a"
+               :stringField "this is a string"
+               :unionObj    {:stringField "this is a string"
+                             :numberField 3
+                             :__typename  "someobject"}}
+    :entities {"root"
+               {:id          "a"
+                :stringField "this is a string"
+                :unionObj    {:artemis.mapgraph/ref "root.unionObj"}
+                ::cache      "root"}
+               "root.unionObj"
+               {:stringField "this is a string"
+                :numberField 3
+                :__typename  "someobject"
+                ::cache      "root.unionObj"}}}
 
    :fragments
    {:query    (d/parse-document
-                "query SomeQuery {
+               "query SomeQuery {
                    id
                    ...OtherFields
                  }
@@ -799,7 +799,7 @@
 
    :nested-fragments
    {:query    (d/parse-document
-                "query SomeQuery {
+               "query SomeQuery {
                    id
                    nestedObj {
                      id
@@ -826,7 +826,7 @@
 
    :chained-fragments
    {:query    (d/parse-document
-                "query SomeQuery {
+               "query SomeQuery {
                    id
                    ...OtherFields
                  }
@@ -847,8 +847,7 @@
                {:id          "abcd"
                 :stringField "this is a string"
                 :numberField 3
-                ::cache      "root"}}}
-})
+                ::cache      "root"}}}})
 
 (defn write-test [k]
   (testing (str "testing normalized cache persistence for query type: " k)
@@ -876,7 +875,7 @@
 (def test-fragments
   {:basic
    {:fragment    (d/parse-document
-                   "fragment A on object {
+                  "fragment A on object {
                       stringField
                     }")
     :entities    {"abcde"
@@ -889,9 +888,55 @@
     :write-data  {:stringField "this is a different string"}
     :read-result {:stringField "this is a string"}}
 
+   :nested-fragments
+   {:fragment (d/compose
+               (d/parse-document
+                "fragment A on B {
+                  slug
+                  friends {
+                    ...C
+                  }
+                }")
+               (d/parse-document
+                "fragment C on D {
+                  slug
+                  name
+                  address {
+                    ...D
+                  }
+                }")
+               (d/parse-document
+                "fragment D on E {
+                   zip
+                 }"))
+    :entities {[:slug "abc"]
+               {:slug "abc"
+                :friends [{:artemis.mapgraph/ref [:slug "abcd"]}
+                          {:artemis.mapgraph/ref [:slug "abcde"]}]}
+
+               [:slug "abcd"]
+               {:slug "abcd"
+                :name "fudge master"
+                :address {:artemis.mapgraph/ref 1}}
+
+               1
+               {:id 1 :street "test 1" :zip 11222}
+
+               2
+               {:id 2 :street "test 2" :zip 03062}
+
+               [:slug "abcde"]
+               {:slug "abcde"
+                :name "fudge colonel"
+                :address {:artemis.mapgraph/ref 2}}}
+    :entity [:slug "abc"]
+    :read-result {:slug "abc"
+                  :friends [{:slug "abcd" :name "fudge master" :address {:zip 11222}}
+                            {:slug "abcde" :name "fudge colonel" :address {:zip 03062}}]}}
+
    :multiple-fields
    {:fragment    (d/parse-document
-                   "fragment A on object {
+                  "fragment A on object {
                       numberField
                       stringField
                     }")
@@ -1003,7 +1048,7 @@
                    "author({\"slug\":\"bob\"})"      {:artemis.mapgraph/ref "bob"}
                    "books"                           [{:artemis.mapgraph/ref 1} {:artemis.mapgraph/ref 2}]}
 
-                  "bob" {:slug "bob" }
+                  "bob" {:slug "bob"}
 
                   1 {:id 1 :title "Book 1", :abstract "Lorem ipsum..."}
                   2 {:id 2 :title "Book 2", :abstract "Lorem ipsum..."}}

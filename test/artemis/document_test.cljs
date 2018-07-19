@@ -1,16 +1,11 @@
 (ns artemis.document-test
-  (:require [cljs.test :refer-macros [deftest is testing async use-fixtures]]
+  (:require [cljs.test :refer-macros [deftest is testing async]]
             [cljs.core.async :refer [chan]]
             [artemis.document :as d]
             [artemis.test-util :as tu]))
 
 (deftest parse-document
   (let [doc (d/parse-document "{ a b c }")]
-    (is (some? doc))))
-
-(deftest parse-document-files
-  (let [doc (d/parse-document-files "test-query-a.graphql"
-                                    "test-query-b.graphql")]
     (is (some? doc))))
 
 (deftest operation
