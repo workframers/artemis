@@ -1,0 +1,11 @@
+{:deps true
+
+ :cache-root ".shadow"
+
+ :builds
+ {:test {:target     :browser-test
+         :test-dir   "out/test"
+         :devtools   {:http-port 8606
+                      :http-root "out/test"}
+         :js-options {:resolve {"object.assign" {:target  :npm
+                                                 :require "object-assign"}}}}}}
