@@ -1001,6 +1001,15 @@
                  {:object1
                   {:id          "aa"
                    :stringField "this is a string"}}))))
+      (testing "set to false nested key doesn't exist"
+        (let [query (d/parse-document "{
+                                        object1 {
+                                          id
+                                          stringField
+                                          doesntExist { slug }
+                                        }
+                                      }")]
+          (is (nil? (:data (a/read store query {}))))))
       (testing "set to false all data not present"
         (let [query (d/parse-document "{
                                         object1 {

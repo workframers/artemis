@@ -108,8 +108,11 @@
                 (assoc result k redirected-pull)
                 ;; redirect root resulted in nothing
                 result))
-            ;; no value for key in store and no cache-redirect found
-            result))))
+            (if (not (:return-partial? gql-context))
+              ;; no value found and don't return partial
+              (reduced ::incomplete-value)
+              ;; no value for key in store and no cache-redirect found
+              result)))))
     result
     pull-map))
 
