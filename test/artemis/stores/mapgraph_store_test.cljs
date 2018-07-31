@@ -1022,10 +1022,10 @@
       (testing "set to false all data not present deeply"
         (let [query (d/parse-document "{
                                         object1 {
-                                          id
                                           otherObject {
                                             title
                                           }
+                                          id
                                         }
                                       }")]
           (is (nil? (:data (a/read store query {})))))))
