@@ -154,7 +154,10 @@
                 (reduced ::incomplete-value)))
 
             (map? expr)
-            (pull-join store result expr entity gql-context)
+            (let [map-result (pull-join store result expr entity gql-context)]
+              (if (= map-result ::incomplete-value)
+                (reduced map-result)
+                map-result))
 
             (= '* expr)                                     ; don't re-merge things we already joined
             (merge result (apply dissoc entity (keys result)))
