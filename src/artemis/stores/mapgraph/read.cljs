@@ -155,7 +155,7 @@
 
             (map? expr)
             (let [map-result (pull-join store result expr entity gql-context)]
-              (if (= map-result ::incomplete-value)
+              (if (incomplete? map-result)
                 (reduced map-result)
                 map-result))
 
