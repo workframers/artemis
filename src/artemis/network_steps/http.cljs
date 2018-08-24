@@ -24,11 +24,11 @@
 (defrecord
   ^{:added "0.1.0"}
   HttpNetworkStep
-  [uri on-response]
+  [uri opts]
   np/GQLNetworkStep
   (-exec [this operation context]
     (let [next (fn [data errors meta]
-                 (let [on-response (:on-response this)]
+                 (let [on-response (some-> this :opts :on-response)]
                    (when (fn? on-response)
                      (on-response data errors meta))
                    (ar/with-errors data errors)))
@@ -58,5 +58,7 @@
   {:added "0.1.0"}
   ([]
    (create-network-step "/graphql"))
-  ([uri & [on-response]]
-   (HttpNetworkStep. uri on-response)))
+  ([uri]
+   (create-network-step uri {}))
+  ([uri opts]
+   (HttpNetworkStep. uri opts)))
