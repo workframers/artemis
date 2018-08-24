@@ -24,24 +24,32 @@
 (defrecord
   ^{:added "0.1.0"}
   HttpNetworkStep
-  [uri]
+  [uri opts]
   np/GQLNetworkStep
   (-exec [this operation context]
-    (try
-      (let [c (post-operation this operation context)]
-        (go (let [{:keys [body error-code] :as res} (async/<! c)
-                  net-error   (when (not= error-code :no-error)
-                                {:message (str "Network error " error-code)
+    (let [next (fn [data errors meta]
+                 (let [on-response (some-> this :opts :on-response)]
+                   (when (fn? on-response)
+                     (on-response data errors meta))
+                   (ar/with-errors data errors)))
+          meta {:operation operation
+                :context   context}]
+      (try
+        (let [c (post-operation this operation context)]
+          (go (let [{:keys [body error-code] :as res} (async/<! c)
+                    net-error (when (not= error-code :no-error)
+                                {:message  (str "Network error " error-code)
                                  :response res})
-                  unpack      (:unpack operation)
-                  data        (unpack (:data body))
-                  errors      (into (:errors body) net-error)]
-              (ar/with-errors {:data data} errors))))
-      (catch :default e
-        (async/to-chan
-         [(ar/with-errors
-           {:data nil}
-           [(assoc (ex-data e) :message (.-message e))])])))))
+                    unpack    (:unpack operation)
+                    data      (unpack (:data body))
+                    errors    (into (:errors body) net-error)]
+                (next {:data data} errors (merge meta {:response res})))))
+        (catch :default e
+          (async/to-chan
+           [(next
+             {:data nil}
+             [(assoc (ex-data e) :message (.-message e))]
+             meta)]))))))
 
 ;; Public API
 (defn create-network-step
@@ -51,4 +59,6 @@
   ([]
    (create-network-step "/graphql"))
   ([uri]
-   (HttpNetworkStep. uri)))
+   (create-network-step uri {}))
+  ([uri opts]
+   (HttpNetworkStep. uri opts)))
