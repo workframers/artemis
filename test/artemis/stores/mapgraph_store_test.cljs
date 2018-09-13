@@ -983,9 +983,18 @@
                   "aa"
                   {:id          "aa"
                    :stringField "this is a string"
-                   :otherObject {:artemis.mapgraph/ref "bb"}}
+                   :otherObject {:artemis.mapgraph/ref "bb"}
+                   :otherObjects   [{:artemis.mapgraph/ref "aaa"}
+                                    {:artemis.mapgraph/ref "bbb"}]
+                   :missingObjects [{:artemis.mapgraph/ref "aaa"}
+                                    {:artemis.mapgraph/ref "ccc"}]}
                   "bb"
-                  {:id "bb"}}
+                  {:id "bb"}
+                  "aaa"
+                  {:id "aaa"
+                   :stringField "aaa's string"}
+                  "bbb"
+                  {:id "bbb"}}
         store (create-store :entities entities
                             :cache-key ::cache)]
     (testing "query return-partial"
@@ -995,6 +1004,38 @@
                                           id
                                           stringField
                                           numberField
+                                        }
+                                      }")]
+          (is (= (:data (a/read store query {} :return-partial? true))
+                 {:object1
+                  {:id          "aa"
+                   :stringField "this is a string"}}))))
+      (testing "set to true and all data in a obj within a nested array not present"
+        (let [query (d/parse-document "{
+                                        object1 {
+                                          id
+                                          stringField
+                                          otherObjects {
+                                            id
+                                            stringField
+                                          }
+                                        }
+                                      }")]
+          (is (= (:data (a/read store query {} :return-partial? true))
+                 {:object1
+                  {:id           "aa"
+                   :stringField  "this is a string"
+                   :otherObjects [{:id          "aaa"
+                                   :stringField "aaa's string"}
+                                  {:id "bbb"}]}}))))
+      (testing "set to true and an obj within a nested array not present"
+        (let [query (d/parse-document "{
+                                        object1 {
+                                          id
+                                          stringField
+                                          missingObjects {
+                                            id
+                                          }
                                         }
                                       }")]
           (is (= (:data (a/read store query {} :return-partial? true))
@@ -1026,6 +1067,29 @@
                                             title
                                           }
                                           id
+                                        }
+                                      }")]
+          (is (nil? (:data (a/read store query {}))))))
+      (testing "set to false and all data not present in objs within nested array"
+        (let [query (d/parse-document "{
+                                        object1 {
+                                          id
+                                          stringField
+                                          otherObjects {
+                                            id
+                                            stringField
+                                          }
+                                        }
+                                      }")]
+          (is (nil? (:data (a/read store query {}))))))
+      (testing "set to false and all data not present within nested array"
+        (let [query (d/parse-document "{
+                                        object1 {
+                                          id
+                                          stringField
+                                          missingObjects {
+                                            id
+                                          }
                                         }
                                       }")]
           (is (nil? (:data (a/read store query {})))))))

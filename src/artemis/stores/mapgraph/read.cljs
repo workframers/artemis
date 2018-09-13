@@ -112,7 +112,7 @@
               ;; no value found and don't return partial
               (reduced ::incomplete-value)
               ;; no value for key in store and no cache-redirect found
-              result)))))
+              (assoc result k ::incomplete-value))))))
     result
     pull-map))
 
@@ -138,38 +138,72 @@
      must all be gql selections from the generated ast. There's no support for
      handling pull patterns that are combination of selections and normal keys"
   [{:keys [entities] :as store} pattern lookup-ref & [gql-context]]
-  (when-let [entity (get entities (:artemis.mapgraph/ref lookup-ref))]
-    (reduce
-      (fn [result expr]
-        (let [{:keys [expr entity selection]} (expr-and-entity-for-gql expr entity gql-context)]
-          (cond
-            (keyword? expr)
-            (if-let [[_ val] (find entity expr)]
-              (if (aliased? selection)
-                (assoc result (-> selection :name keyword) val)
-                (assoc result expr val))
-              ;; Keyword was in query, but not found in store
-              (if (:return-partial? gql-context)
-                result
-                (reduced ::incomplete-value)))
+  (let [ref (:artemis.mapgraph/ref lookup-ref)]
+    (if (or (nil? ref) (contains? entities ref))
+      (when-let [entity (get entities (:artemis.mapgraph/ref lookup-ref))]
+        (reduce
+         (fn [result expr]
+           (let [{:keys [expr entity selection]} (expr-and-entity-for-gql expr entity gql-context)]
+             (cond
+               (keyword? expr)
+               (let [k (if (aliased? selection)
+                         (-> selection :name keyword)
+                         expr)]
+                 (if-let [[_ val] (find entity expr)]
+                   (assoc result k val)
+                   ;; Keyword was in query, but not found in store
+                   (if (:return-partial? gql-context)
+                     (assoc result k ::incomplete-value)
+                     (reduced ::incomplete-value))))
 
-            (map? expr)
-            (let [map-result (pull-join store result expr entity gql-context)]
-              (if (incomplete? map-result)
-                (reduced map-result)
-                map-result))
+               (map? expr)
+               (let [map-result (pull-join store result expr entity gql-context)]
+                 (if (incomplete? map-result)
+                   (reduced map-result)
+                   map-result))
 
-            (= '* expr)                                     ; don't re-merge things we already joined
-            (merge result (apply dissoc entity (keys result)))
+               (= '* expr)                                  ; don't re-merge things we already joined
+               (merge result (apply dissoc entity (keys result)))
 
-            :else
-            (throw (ex-info "Invalid form in pull pattern"
-                            {:reason      ::invalid-pull-form
-                             ::form       expr
-                             ::pattern    pattern
-                             ::lookup-ref lookup-ref})))))
-      {}
-      pattern)))
+               :else
+               (throw (ex-info "Invalid form in pull pattern"
+                               {:reason      ::invalid-pull-form
+                                ::form       expr
+                                ::pattern    pattern
+                                ::lookup-ref lookup-ref})))))
+         {}
+         pattern))
+      ::incomplete-value)))
+
+(defn incomplete-or-has-incomplete? [val]
+  (or (incomplete? val)
+      (and (coll? val)
+           (not-empty (filter incomplete? val)))))
+
+(defn remove-incomplete [val]
+  (cond
+    (map? val)
+    (->> val
+         (remove (fn [[k v]] (incomplete-or-has-incomplete? v)))
+         (map (fn [[k v]] [k (remove-incomplete v)]))
+         (into {}))
+
+    (coll? val)
+    (like val (map remove-incomplete val))
+
+    :else
+    val))
+
+(defn has-incomplete? [val]
+  (cond
+    (map? val)
+    (not-empty (filter (fn [[k v]] (has-incomplete? v)) val))
+
+    (coll? val)
+    (not-empty (filter has-incomplete? val))
+
+    :else
+    (incomplete? val)))
 
 (defn read-from-cache
   [document input-vars store return-partial?]
@@ -181,8 +215,10 @@
                  :store store}
         pull-pattern (->gql-pull-pattern first-op fragments)
         result (pull store pull-pattern {:artemis.mapgraph/ref "root"} context)]
-    (when-not (incomplete? result)
-      result)))
+    (if return-partial?
+      (remove-incomplete result)
+      (when-not (has-incomplete? result)
+        result))))
 
 (defn read-from-entity
   [document ent-ref store return-partial?]
@@ -194,5 +230,7 @@
                  :store store}
         pull-pattern (->gql-pull-pattern first-frag fragments)
         result (pull store pull-pattern {:artemis.mapgraph/ref ent-ref} context)]
-    (when-not (incomplete? result)
-      result)))
+    (if return-partial?
+      (remove-incomplete result)
+      (when-not (has-incomplete? result)
+        result))))
