@@ -866,7 +866,8 @@
           store (create-store :entities entities
                               :cache-key ::cache)
           response (a/read store query input-vars)]
-      (is (= {:data result} response)))))
+      (is (= {:data result
+              :partial? false} response)))))
 
 (deftest test-cache-reading
   (doseq [test-query (keys test-queries)]
@@ -970,7 +971,8 @@
           store (create-store :entities entities
                               :cache-key ::cache)
           response (a/read-fragment store fragment entity)]
-      (is (= {:data read-result} response)))))
+      (is (= {:data read-result
+              :partial? false} response)))))
 
 (deftest test-cache-fragment-reading
   (doseq [test-fragment (keys test-fragments)]

@@ -195,15 +195,16 @@
     val))
 
 (defn has-incomplete? [val]
-  (cond
-    (map? val)
-    (not-empty (filter (fn [[k v]] (has-incomplete? v)) val))
+  (boolean
+   (cond
+     (map? val)
+     (not-empty (filter (fn [[k v]] (has-incomplete? v)) val))
 
-    (coll? val)
-    (not-empty (filter has-incomplete? val))
+     (coll? val)
+     (not-empty (filter has-incomplete? val))
 
-    :else
-    (incomplete? val)))
+     :else
+     (incomplete? val))))
 
 (defn read-from-cache
   [document input-vars store return-partial?]
@@ -214,11 +215,13 @@
                  :return-partial? return-partial?
                  :store store}
         pull-pattern (->gql-pull-pattern first-op fragments)
-        result (pull store pull-pattern {:artemis.mapgraph/ref "root"} context)]
-    (if return-partial?
-      (remove-incomplete result)
-      (when-not (has-incomplete? result)
-        result))))
+        result (pull store pull-pattern {:artemis.mapgraph/ref "root"} context)
+        partial? (has-incomplete? result)]
+    {:data (if return-partial?
+             (remove-incomplete result)
+             (when-not partial?
+               (not-empty result)))
+     :partial? partial?}))
 
 (defn read-from-entity
   [document ent-ref store return-partial?]
@@ -229,8 +232,10 @@
                  :return-partial? return-partial?
                  :store store}
         pull-pattern (->gql-pull-pattern first-frag fragments)
-        result (pull store pull-pattern {:artemis.mapgraph/ref ent-ref} context)]
-    (if return-partial?
-      (remove-incomplete result)
-      (when-not (has-incomplete? result)
-        result))))
+        result (pull store pull-pattern {:artemis.mapgraph/ref ent-ref} context)
+        partial? (has-incomplete? result)]
+    {:data (if return-partial?
+             (remove-incomplete result)
+             (when-not partial?
+               (not-empty result)))
+     :partial? partial?}))

@@ -90,7 +90,8 @@
 
 (s/def ::data (s/nilable any?))
 (s/def ::return-partial? boolean?)
-(s/def ::result (s/keys :req-un [::data] :opt-un [::return-partial?]))
+(s/def ::partial? boolean?)
+(s/def ::result (s/keys :req-un [::data] :opt-un [::partial?]))
 (s/def ::write-data (s/keys :req-in [::data]))
 (s/def ::entity-ref any?)
 
@@ -210,11 +211,11 @@
   #### `:local-first`
   Will run a query against the local store first. The result of the local query
   will be put on the return channel. If that result is a non-nil value, then a
-  remote query will not be executed. If the result is `nil`, meaning the data
-  isn't available locally, a remote query will be executed. This fetch policy
-  aims to minimize the number of network requests sent. The same cautions
-  around stale data that applied to the `:local-only` policy do so for this
-  policy as well.
+  remote query will not be executed. If the result is `nil` (meaning the data
+  isn't available locally), or :partial? is true (a partial result was returned)
+  a remote query will be executed. This fetch policy aims to minimize the number
+  of network requests sent. The same cautions around stale data that applied to
+  the `:local-only` policy do so for this policy as well.
 
   #### `:local-then-remote`
   Like the `:local-first` policy, this will run a query against the local store
@@ -279,14 +280,15 @@
 
        :local-first
        (let [local-result    (local-read)
-             nil-local-data? (nil? (:data local-result))]
+             re-fetch? (or (nil? (:data local-result))
+                           (true? (:partial? local-result)))]
          (async/put! out-chan
                      (-> local-result
                          result->message
                          (assoc :variables      variables
-                                :in-flight?     nil-local-data?
-                                :network-status (if nil-local-data? :fetching :ready))))
-         (if nil-local-data?
+                                :in-flight?     re-fetch?
+                                :network-status (if re-fetch? :fetching :ready))))
+         (if re-fetch?
            (let [remote-result-chan (remote-read)]
              (go (let [remote-result (async/<! remote-result-chan)
                        message       (result->message remote-result)]
