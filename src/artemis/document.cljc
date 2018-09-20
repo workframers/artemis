@@ -86,17 +86,23 @@
   (if (empty? fragments)
     sel-set
     (reduce (fn [acc sel]
-              (if (= (:node-type sel) :fragment-spread)
+              (cond
+                (= (:node-type sel) :fragment-spread)
                 (->> (get-in fragments [(:name sel) :selection-set] [])
                      (resolve-fragments fragments)
                      (into acc))
+
+                (not (nil? (:selection-set sel)))
+                (conj acc (update sel :selection-set #(resolve-fragments fragments %)))
+
+                :else
                 (conj acc sel)))
             []
             sel-set)))
 
 (defn- update-definitions [fragments definitions]
-  (map #(assoc % :selection-set (resolve-fragments fragments (:selection-set %)))
-       definitions))
+  (mapv #(update % :selection-set (partial resolve-fragments fragments))
+        definitions))
 
 (s/fdef inline-fragments
         :args (s/cat :doc ::document)
