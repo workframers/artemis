@@ -101,7 +101,7 @@
             sel-set)))
 
 (defn- update-definitions [fragments definitions]
-  (mapv #(assoc % :selection-set (resolve-fragments fragments (:selection-set %)))
+  (mapv #(update % :selection-set (partial resolve-fragments fragments))
         definitions))
 
 (s/fdef inline-fragments
