@@ -1111,6 +1111,16 @@
                                          }")]
           (is (nil? (:data (a/read-fragment store fragment "aa")))))))))
 
+(deftest empty-store-test
+  (let [empty-store (create-store :entities {}
+                                  :cache-key ::cache)]
+    (testing "return partial set to true with an empty store"
+      (let [query (d/parse-document "{ nonExistentField }")]
+        (is (nil? (:data (a/read empty-store query {} :return-partial? true))))))
+    (testing "return partial set to galse with an empty store"
+      (let [query (d/parse-document "{ nonExistentField }")]
+        (is (nil? (:data (a/read empty-store query {} :return-partial? false))))))))
+
 (def cache-redirects-map
   {:book (comp :id :variables)
    :featuredBook (comp #(when (= % "bob") 1) :slug :variables)})
