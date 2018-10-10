@@ -27,6 +27,7 @@
     "query Hero($episode: String!) {
       hero(episode: $episode) {
         name
+        title
       }
     }"))
 
