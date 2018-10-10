@@ -136,7 +136,7 @@
              (d/inline-fragments composed-doc)))))
 
   (testing "inlining composed fragments with duplicate fields in separate fragments"
-    (let [frag-one     (d/parse-document "fragment A on Thing { projects {slug} }")
+    (let [frag-one     (d/parse-document "fragment A on Thing { projects {slug owner} }")
           frag-two     (d/parse-document "fragment B on Thing { projects {slug name} }")
           doc          (d/parse-document "{ me { slug ...A ...B } } ")
           composed-doc (d/compose doc frag-one frag-two)]
@@ -155,6 +155,8 @@
                     :selection-set
                     [{:node-type  :field
                       :field-name "slug"}
+                     {:node-type  :field
+                      :field-name "owner"}
                      {:node-type  :field
                       :field-name "name"}]}]}]}]}
              (d/inline-fragments composed-doc))))))
