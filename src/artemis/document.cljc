@@ -79,12 +79,18 @@
   [doc mapping]
   (vary-meta doc assoc ::operation-mapping mapping))
 
+(defn merge-selection-sets [s1 s2]
+  (assoc s1 :selection-set
+            (->> (concat (:selection-set s1) (:selection-set s2))
+                 set
+                 (into []))))
+
 (defn- merge-selections [selections]
   (let [grouped (group-by :field-name selections)]
     (mapv
      (fn [[_ selections]]
        (if (> (count selections) 1)
-         (reduce merge selections)
+         (reduce merge-selection-sets selections)
          (first selections)))
      grouped)))
 
