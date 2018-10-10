@@ -192,7 +192,8 @@
     (like val (map remove-incomplete val))
 
     :else
-    val))
+    (when-not (incomplete? val)
+      val)))
 
 (defn has-incomplete? [val]
   (boolean

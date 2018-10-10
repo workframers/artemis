@@ -79,24 +79,46 @@
   [doc mapping]
   (vary-meta doc assoc ::operation-mapping mapping))
 
+(defn merge-selection-sets [s1 s2]
+  (assoc s1 :selection-set
+            (->> (concat (:selection-set s1) (:selection-set s2))
+                 set
+                 (into []))))
+
+(defn- merge-selections [selections]
+  (let [grouped (group-by :field-name selections)]
+    (mapv
+     (fn [[_ selections]]
+       (if (> (count selections) 1)
+         (reduce merge-selection-sets selections)
+         (first selections)))
+     grouped)))
+
 (defn- resolve-fragments
   "Given a map of fragments, inline the values for a fragment if they appear
   within the selection set."
   [fragments sel-set]
   (if (empty? fragments)
     sel-set
-    (reduce (fn [acc sel]
-              (if (= (:node-type sel) :fragment-spread)
-                (->> (get-in fragments [(:name sel) :selection-set] [])
-                     (resolve-fragments fragments)
-                     (into acc))
-                (conj acc sel)))
-            []
-            sel-set)))
+    (->> sel-set
+         (reduce (fn [acc sel]
+                   (cond
+                     (= (:node-type sel) :fragment-spread)
+                     (->> (get-in fragments [(:name sel) :selection-set] [])
+                          (resolve-fragments fragments)
+                          (into acc))
+
+                     (not (nil? (:selection-set sel)))
+                     (conj acc (update sel :selection-set #(resolve-fragments fragments %)))
+
+                     :else
+                     (conj acc sel)))
+                 [])
+         (merge-selections))))
 
 (defn- update-definitions [fragments definitions]
-  (map #(assoc % :selection-set (resolve-fragments fragments (:selection-set %)))
-       definitions))
+  (mapv #(update % :selection-set (partial resolve-fragments fragments))
+        definitions))
 
 (s/fdef inline-fragments
         :args (s/cat :doc ::document)
