@@ -115,6 +115,45 @@
              (is closed?)
              (done)))))))
 
+(deftest query-local-first-partially-cached
+  (testing "local-first when only partial data available"
+    (async done
+      (let [cache (atom {"The Empire Strikes Back" {:name "Luke Skywalker"}})]
+        (with-client
+         {:store-query-fn (fn [_ _ {:keys [episode]} _]
+                            (let [data (get @cache episode)]
+                              (merge {:data data}
+                                (when-not (= #{:name :title} (-> data keys set))
+                                  {:partial? true}))))
+          :store-write-fn (fn [this {:keys [data]} _ {:keys [episode]}]
+                            (reset! cache {episode (merge (get @cache episode)
+                                                          data)})
+                            this)}
+         (let [result-chan (core/query! client tu/query-doc variables :fetch-policy :local-first
+                                                                      :return-partial? true)]
+           (go (let [local-result (<! result-chan)]
+                 (is (:partial? local-result))
+                 (is (not (nil? (:data local-result))))
+                 (is (= (:variables local-result) variables))
+                 (is (= (:network-status local-result) :fetching))
+                 (is (true? (:in-flight? local-result))))
+
+               ;; Putting a fake remote result
+               (put-result! {:data {:name "Luke Skywalker"
+                                    :title "Jedi"}})
+
+               (let [remote-result (<! result-chan)
+                     closed?       (nil? (<! result-chan))]
+                 (is (= (:data remote-result) {:name "Luke Skywalker"
+                                               :title "Jedi"}))
+                 (is (= (:variables remote-result) variables))
+                 (is (= (:network-status remote-result) :ready))
+                 (is (false? (:in-flight? remote-result)))
+                 (is (= @cache {"The Empire Strikes Back" {:name "Luke Skywalker"
+                                                           :title "Jedi"}}))
+                 (is closed?)
+                 (done)))))))))
+
 (deftest query-local-first-not-cached
   (testing "local-first when no data available"
     (async done
