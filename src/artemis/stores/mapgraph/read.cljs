@@ -62,8 +62,17 @@
   [{:keys [entities] :as store} result pull-map entity gql-context]
   (reduce-kv
     (fn [result k join-expr]
-      (let [{:keys [expr entity selection]} (expr-and-entity-for-gql k entity gql-context)
+      (let [on-inline-fragment? (sel/expr-on-inline-fragment? k)
+            fragment-type-mismatch? (and on-inline-fragment?
+                                         (not (sel/expr-matches-inline-fragment-type?
+                                               k
+                                               (:__typename entity))))
+            {:keys [expr entity selection]} (expr-and-entity-for-gql k entity gql-context)
+            old-k k
             k expr]
+        ;(println "printing keys")
+        ;(cljs.pprint/pprint k)
+        ;(cljs.pprint/pprint old-k)
         (if (contains? entity k)
           (let [val (get entity k)]
             (cond
@@ -92,27 +101,36 @@
                                                         %
                                                         gql-context)
                                                  val))))))
-          (if-let [redirect (some-> gql-context
-                                    :store
-                                    :cache-redirects
-                                    (get k)
-                                    (apply [{:store (:store store gql-context)
-                                             :parent-entity entity
-                                             :variables (:input-vars gql-context)}]))]
-            ;; cache-redirect found
-            (let [redirected-pull (pull (:store gql-context)
-                                        (ref-join-expr entities join-expr (get entity expr) selection)
-                                        {:artemis.mapgraph/ref redirect}
-                                        gql-context)]
-              (if redirected-pull
-                (assoc result k redirected-pull)
-                ;; redirect root resulted in nothing
-                result))
-            (if (not (:return-partial? gql-context))
-              ;; no value found and don't return partial
-              (reduced ::incomplete-value)
-              ;; no value for key in store and no cache-redirect found
-              (assoc result k ::incomplete-value))))))
+          (if fragment-type-mismatch?
+            ; skip expr when it is part of an inline fragment/union of a different type to the entity
+            (do (println "YASSS") result)
+            (if-let [redirect (some-> gql-context
+                                      :store
+                                      :cache-redirects
+                                      (get k)
+                                      (apply [{:store         (:store store gql-context)
+                                               :parent-entity entity
+                                               :variables     (:input-vars gql-context)}]))]
+              ;; cache-redirect found
+              (let [redirected-pull (pull (:store gql-context)
+                                          (ref-join-expr entities join-expr (get entity expr) selection)
+                                          {:artemis.mapgraph/ref redirect}
+                                          gql-context)]
+                (if redirected-pull
+                  (assoc result k redirected-pull)
+                  result))
+              ;; redirect root resulted in nothing
+              (if (not (:return-partial? gql-context))
+                ;; no value found and don't return partial
+                (do
+                  (println "\n\n~~~ WHY ~~~")
+                  (cljs.pprint/pprint k)
+                  (cljs.pprint/pprint old-k)
+                  (cljs.pprint/pprint entity)
+                  (println "~~~ ME ~~~")
+                  (reduced ::incomplete-value))
+                ;; no value for key in store and no cache-redirect found
+                (assoc result k ::incomplete-value)))))))
     result
     pull-map))
 
@@ -143,7 +161,13 @@
       (when-let [entity (get entities (:artemis.mapgraph/ref lookup-ref))]
         (reduce
          (fn [result expr]
-           (let [{:keys [expr entity selection]} (expr-and-entity-for-gql expr entity gql-context)]
+           (let [old-e expr
+                 on-inline-fragment? (sel/expr-on-inline-fragment? expr)
+                 fragment-type-mismatch? (and on-inline-fragment?
+                                              (not (sel/expr-matches-inline-fragment-type?
+                                                    expr
+                                                    (:__typename entity))))
+                 {:keys [expr entity selection]} (expr-and-entity-for-gql expr entity gql-context)]
              (cond
                (keyword? expr)
                (let [k (if (aliased? selection)
@@ -151,10 +175,23 @@
                          expr)]
                  (if-let [[_ val] (find entity expr)]
                    (assoc result k val)
-                   ;; Keyword was in query, but not found in store
-                   (if (:return-partial? gql-context)
-                     (assoc result k ::incomplete-value)
-                     (reduced ::incomplete-value))))
+
+                   (if fragment-type-mismatch?
+                     ; skip expr when it is part of an inline fragment/union of a different type to the entity
+                     (do (println "YASSS") result)
+
+                     ;; Keyword was in query, but not found in store
+                     (if (:return-partial? gql-context)
+                       (assoc result k ::incomplete-value)
+                       (do
+                         (println "\n\n~~~ INCOMPOOP ~~~")
+                         (cljs.pprint/pprint old-e)
+                         (cljs.pprint/pprint expr)
+                         (cljs.pprint/pprint entity)
+                         (println (sel/expr-on-inline-fragment? expr))
+                         (println (not (sel/expr-matches-inline-fragment-type? expr (:__typename entity))))
+                         (println "~~~ NINCOMPLETE ~~~")
+                         (reduced ::incomplete-value))))))
 
                (map? expr)
                (let [map-result (pull-join store result expr entity gql-context)]
@@ -173,7 +210,8 @@
                                 ::lookup-ref lookup-ref})))))
          {}
          pattern))
-      ::incomplete-value)))
+      (do (println "ugh why")
+          ::incomplete-value))))
 
 (defn incomplete-or-has-incomplete? [val]
   (or (incomplete? val)
@@ -196,6 +234,7 @@
       val)))
 
 (defn has-incomplete? [val]
+  (cljs.pprint/pprint val)
   (boolean
    (cond
      (map? val)
@@ -216,6 +255,7 @@
                  :return-partial? return-partial?
                  :store store}
         pull-pattern (->gql-pull-pattern first-op fragments)
+        ;_ (cljs.pprint/pprint pull-pattern)
         result (pull store pull-pattern {:artemis.mapgraph/ref "root"} context)
         partial? (has-incomplete? result)]
     {:data (if return-partial?

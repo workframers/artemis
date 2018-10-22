@@ -216,7 +216,7 @@
                {:stringField "this is a string too"
                 :numberField 3
                 :nullField   nil
-                ::cache             "root.nestedObj"}}}
+                ::cache      "root.nestedObj"}}}
 
    :nested-with-args
    {:query    (d/parse-document
@@ -249,7 +249,7 @@
                {:stringField "this is a string too"
                 :numberField 3
                 :nullField   nil
-                ::cache             "root.nestedObj({\"arg\":\"val\"})"}}}
+                ::cache      "root.nestedObj({\"arg\":\"val\"})"}}}
 
    :nested-array
    {:query    (d/parse-document
@@ -382,19 +382,19 @@
                               {:artemis.mapgraph/ref "root.nestedArray.2"}]
                 ::cache      "root"}
                "root.nestedArray.0"
-               {:stringField "this is a string too"
-                :numberField 2
-                :nullField   nil
+               {:stringField       "this is a string too"
+                :numberField       2
+                :nullField         nil
                 :deeplyNestedArray [{:artemis.mapgraph/ref "root.nestedArray.0.deeplyNestedArray.0"}
                                     {:artemis.mapgraph/ref "root.nestedArray.0.deeplyNestedArray.1"}]
-                ::cache             "root.nestedArray.0"}
+                ::cache            "root.nestedArray.0"}
                "root.nestedArray.1"
-               {:stringField "this is a string also"
-                :numberField 3
-                :nullField   nil
+               {:stringField       "this is a string also"
+                :numberField       3
+                :nullField         nil
                 :deeplyNestedArray [{:artemis.mapgraph/ref "root.nestedArray.1.deeplyNestedArray.0"}
                                     {:artemis.mapgraph/ref "root.nestedArray.1.deeplyNestedArray.1"}]
-                ::cache             "root.nestedArray.1"}
+                ::cache            "root.nestedArray.1"}
                "root.nestedArray.2"
                {:stringField       "this is a string, man"
                 :numberField       6
@@ -776,6 +776,66 @@
                 :numberField 3
                 :__typename  "someobject"
                 ::cache      "root.unionObj"}}}
+
+   :more-union-stuff
+   {:query    (d/parse-document
+               "{
+                  id
+                  folder {
+                    id
+                    title
+                    contents {
+                      items {
+                        __typename
+                        ...on Folder {
+                          id
+                          title
+                          contents {
+                            items {
+                              __typename
+                              ...on Folder {
+                                id
+                                title
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              ")
+    :result   {:id     "a"
+               :folder {:id         "root-folder"
+                        :title      "Documents"
+                        :contents   {:items [{:__typename "Folder"
+                                              :id         "nested-folder"
+                                              :title      "Nested"
+                                              :contents   {:items []}}
+                                             {:__typename "File"}]}}}
+    :entities {"root"
+               {:id     "a"
+                :folder {:artemis.mapgraph/ref "root-folder"}
+                ::cache "root"}
+               "root.folder.contents"
+               {::cache "root.folder.contents"
+                :items [{:artemis.mapgraph/ref "nested-folder"}
+                        {:artemis.mapgraph/ref "root.folder.contents.items.1"}]}
+               "root.folder.contents.items.0.contents"
+               {::cache "root.folder.contents.items.0.contents"
+                :items []}
+               "root.folder.contents.items.1"
+               {::cache "root.folder.contents.items.1"
+                :__typename "File"}
+               "root-folder"
+               {:id "root-folder"
+                :title      "Documents"
+                :contents   {:artemis.mapgraph/ref "root.folder.contents"}}
+               "nested-folder"
+               {:__typename "Folder"
+                :id "nested-folder"
+                :title      "Nested"
+                :contents   {:artemis.mapgraph/ref "root.folder.contents.items.0.contents"}}}}
 
    :fragments
    {:query    (d/parse-document

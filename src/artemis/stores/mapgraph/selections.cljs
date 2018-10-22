@@ -62,16 +62,39 @@
 
 (defn resolve-fragments
   "Given a map of fragments, inline the values for a fragment if they appear
-  within the selection set."
+  within the selection set. "
   [fragments sel-set]
   (reduce (fn [acc sel]
-            (if (keyword-identical? (:node-type sel) :fragment-spread)
-              (->> (get-in fragments [(:name sel) :selection-set] [])
-                   (resolve-fragments fragments)
-                   (into acc))
-              (conj acc sel)))
+            (cond (keyword-identical? (:node-type sel) :fragment-spread)
+                  (->> (get-in fragments [(:name sel) :selection-set] [])
+                       (resolve-fragments fragments)
+                       (into acc))
+
+                  (keyword-identical? (:node-type sel) :inline-fragment)
+                  (do
+                    (println "\n\nresolving")
+                    (cljs.pprint/pprint sel)
+                    (->> (:selection-set sel)
+                         ; add metadata to each expr about the inline fragment they're selected on
+                         (map #(assoc % ::inline-fragment-type-name
+                                        (get-in sel [:type-condition :type-name])))
+                         (resolve-fragments fragments)
+                         (into acc)))
+                  :else
+                  (conj acc sel)))
           []
           sel-set))
+
+(defn expr-on-inline-fragment?
+  "determines whether an expression was part of a selection on an inline fragment"
+  [expr]
+  (contains? expr ::inline-fragment-type-name))
+
+(defn expr-matches-inline-fragment-type?
+  "determines whether the type name of an expression selected on an inline fragment
+   matches the given type name"
+  [expr typename]
+  (= typename (::inline-fragment-type-name expr)))
 
 (defn selection-set
   "For a selection, checks for a nested selection-set and returns it. Whenever
