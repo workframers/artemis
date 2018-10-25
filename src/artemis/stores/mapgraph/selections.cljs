@@ -9,7 +9,7 @@
 (defn has-args? ^boolean [selection]
   (boolean (:arguments selection)))
 (defn type-cond? ^boolean [selection]
-  (boolean (some-> selection :selection-set first :type-condition)))
+  (boolean (some :type-condition (:selection-set selection))))
 (defn custom-dirs? ^boolean [{:keys [directives]}]
   (boolean (some #(not (regular-directives (:name %))) directives)))
 
@@ -100,11 +100,12 @@
   [entities join-expr lookup-ref selection]
   (if-not (type-cond? selection)
     join-expr
-    (reduce (fn [acc [condition selection]]
-              (if (= (:type-name (:type-condition condition))
-                     (:__typename (get entities (:artemis.mapgraph/ref lookup-ref))))
-                (reduced (into acc selection))
-                acc))
-            []
-            ;; converting map to tuples for easier access of individual key/val
-            (mapcat identity join-expr))))
+    (let [outer-selections (filter :field-name join-expr)] ; fields selected outside of the union fragment
+      (reduce (fn [acc [condition selection]]
+                (if (= (:type-name (:type-condition condition))
+                       (:__typename (get entities (:artemis.mapgraph/ref lookup-ref))))
+                  (reduced (into acc selection))
+                  acc))
+              outer-selections
+              ;; converting map to tuples for easier access of individual key/val
+              (mapcat identity join-expr)))))
