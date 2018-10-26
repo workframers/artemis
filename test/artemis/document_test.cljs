@@ -136,29 +136,39 @@
              (d/inline-fragments composed-doc)))))
 
   (testing "inlining composed fragments with duplicate fields in separate fragments"
-    (let [frag-one     (d/parse-document "fragment A on Thing { projects {slug owner} }")
-          frag-two     (d/parse-document "fragment B on Thing { projects {slug name} }")
-          doc          (d/parse-document "{ me { slug ...A ...B } } ")
-          composed-doc (d/compose doc frag-one frag-two)]
+    (let [frag-a (d/parse-document "fragment A on Thing { field { id A } }")
+          frag-b (d/parse-document "fragment B on Thing { field { id B } }")
+          frag-c (d/parse-document "fragment C on Thing { field { id C } }")
+          frag-d (d/parse-document "fragment D on Field { id D }")
+          frag-e (d/compose
+                  (d/parse-document "fragment E on Thing { ...C field { id ...D E } }")
+                  frag-c frag-d)
+          doc    (d/parse-document "{ root { id ...A ...B ...E } } ")
+          composed-doc (d/compose doc frag-a frag-b frag-e)]
       (is (= {:operation-definitions
               [{:section        :operation-definitions
                 :node-type      :operation-definition
                 :operation-type {:type "query"}
-                :selection-set
-                [{:node-type :field
-                  :field-name "me"
-                  :selection-set
-                  [{:node-type :field
-                    :field-name "slug"}
-                   {:node-type :field
-                    :field-name "projects"
-                    :selection-set
-                    [{:node-type  :field
-                      :field-name "slug"}
-                     {:node-type  :field
-                      :field-name "owner"}
-                     {:node-type  :field
-                      :field-name "name"}]}]}]}]}
+                :selection-set [{:node-type :field
+                                 :field-name "root"
+                                 :selection-set
+                                 [{:node-type :field
+                                   :field-name "id"}
+                                  {:node-type :field
+                                   :field-name "field"
+                                   :selection-set
+                                   [{:node-type  :field
+                                     :field-name "id"}
+                                    {:node-type  :field
+                                     :field-name "A"}
+                                    {:node-type  :field
+                                     :field-name "B"}
+                                    {:node-type  :field
+                                     :field-name "C"}
+                                    {:node-type  :field
+                                     :field-name "D"}
+                                    {:node-type  :field
+                                     :field-name "E"}]}]}]}]}
              (d/inline-fragments composed-doc))))))
 
 (deftest select
