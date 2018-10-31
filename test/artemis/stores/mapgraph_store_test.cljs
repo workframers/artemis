@@ -744,6 +744,41 @@
                 :numberField 3
                 :__typename  "object"}}}
 
+   :nested-union-typename-in-outer-level
+   {:query    (d/parse-document
+               "{
+                     id
+                     stringField
+                     unionObj {
+                       __typename
+                       ... on object {
+                         id
+                         numberField
+                         stringField
+                       }
+                       ... on otherobject {
+                         id
+                         stringField
+                       }
+                     }
+                   }")
+    :result   {:id          "a"
+               :stringField "this is a string"
+               :unionObj    {:id          "abcd"
+                             :stringField "this is a string"
+                             :numberField 3
+                             :__typename  "object"}}
+    :entities {"root"
+               {:id          "a"
+                :stringField "this is a string"
+                :unionObj    {:artemis.mapgraph/ref "abcd"}
+                ::cache      "root"}
+               "abcd"
+               {:id          "abcd"
+                :stringField "this is a string"
+                :numberField 3
+                :__typename  "object"}}}
+
    :nested-union-no-id
    {:query    (d/parse-document
                "{
