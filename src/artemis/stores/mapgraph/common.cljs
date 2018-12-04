@@ -1,7 +1,8 @@
-(ns artemis.stores.mapgraph.common)
+(ns artemis.stores.mapgraph.common
+  (:require [com.rpl.specter :as specter]))
 
-(defn map-vals [m f] (into {} (for [[k v] m] [k (f v)])))
-(defn map-keys [m f] (into {} (for [[k v] m] [(f k) v])))
+(defn map-vals [m f] (specter/transform [specter/MAP-VALS] f m))
+(defn map-keys [m f] (specter/transform [specter/MAP-KEYS] f m))
 
 (defn- possible-entity-map?
   "True if x is a non-sorted map. This check prevents errors from
