@@ -12,7 +12,8 @@
    [haslett                         "0.1.2"]
    [shodan                          "0.4.2"]
    [diffit                          "1.0.0"]
-   [floatingpointio/graphql-builder "0.1.6"]]
+   [floatingpointio/graphql-builder "0.1.6"]
+   [com.rpl/specter                 "1.1.2"]]
 
   :exclusions
   [org.clojure/core.async]
