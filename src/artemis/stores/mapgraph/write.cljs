@@ -103,9 +103,9 @@
                                   nsed-key (str stub "." (name sel-key))
                                   new-v (if (sequential? v)
                                           (mapv (fn [result idx]
-                                                  (format-for-cache context (sel/selection-set sel result) result fragments (str nsed-key "." idx)))
+                                                  (format-for-cache context (sel/selection-set fragments sel result) result fragments (str nsed-key "." idx)))
                                                 v (range))
-                                          (format-for-cache context (sel/selection-set sel v) v fragments nsed-key))]
+                                          (format-for-cache context (sel/selection-set fragments sel v) v fragments nsed-key))]
                               (vector sel-key new-v)))
                           result))]
         (if (or (= stub "root") (not (get-ref formatted store)))

@@ -680,6 +680,45 @@
                 :numberField 3
                 :__typename  "otherobject"}}}
 
+   :union-fragment-array
+   {:query    (d/compose
+                (d/parse-document
+                  "{
+                      search(text: \"a\") {
+                        __typename
+                        ...unionFragment
+                      }
+                    }")
+                (d/parse-document
+                  "fragment unionFragment on Foo {
+                   ... on object {
+                            id
+                            stringField
+                          }
+                   ... on otherobject {
+                            id
+                            numberField
+                   }}"))
+    :result   {:search
+               [{:id          "abcd"
+                 :stringField "this is a string"
+                 :__typename  "object"}
+                {:id          "efgh"
+                 :numberField 3
+                 :__typename  "otherobject"}]}
+    :entities {"root"
+               {"search({\"text\":\"a\"})" [{:artemis.mapgraph/ref "abcd"}
+                                            {:artemis.mapgraph/ref "efgh"}]
+                ::cache                    "root"}
+               "abcd"
+               {:id          "abcd"
+                :stringField "this is a string"
+                :__typename  "object"}
+               "efgh"
+               {:id          "efgh"
+                :numberField 3
+                :__typename  "otherobject"}}}
+
    :union-array-no-id
    {:query    (d/parse-document
                "{
@@ -890,10 +929,10 @@
           initial-store (create-store :cache-key ::cache)
           new-store (a/write initial-store {:data result} query input-vars)]
       (is (= entities (:entities new-store))))))
-
-(deftest test-cache-persistence
-  (doseq [test-query (keys test-queries)]
-    (write-test test-query)))
+;
+;(deftest test-cache-persistence
+;  (doseq [test-query (keys test-queries)]
+;    (write-test test-query)))
 
 (defn read-test [k]
   (testing (str "testing normalized cache querying for query type: " k)
@@ -905,8 +944,10 @@
               :partial? false} response)))))
 
 (deftest test-cache-reading
-  (doseq [test-query (keys test-queries)]
-    (read-test test-query)))
+;  (doseq [test-query (keys test-queries)]
+;    (read-test test-query)))
+  (.log js/console "not broken")
+  (read-test :union-fragment-array))
 
 (def test-fragments
   {:basic
@@ -969,6 +1010,27 @@
     :read-result {:slug "abc"
                   :friends [{:slug "abcd" :name "fudge master" :address {:zip 11222}}
                             {:slug "abcde" :name "fudge colonel" :address {:zip 03062}}]}}
+   :nested-union-fragments
+   {:fragment (d/compose
+                (d/parse-document
+                   "fragment Test on UnionType {
+                    __typename
+                    ...on Drawing {slug name }
+                    ...on Folder { slug title }
+                  }"))
+    :entities {[:slug "drawing"]
+               {:__typename "Drawing"
+                :slug "drawing"
+                :name "drawingName"
+                :otherfield "xyz"}
+               [:slug "folder"]
+               {:__typename "Folder"
+                :slug "abcd"
+                :title "foldertitle"}}
+    :entity [:slug "drawing"]
+    :read-result {:__typename "Drawing"
+                  :slug "drawing"
+                  :name "drawingName"}}
 
    :multiple-fields
    {:fragment    (d/parse-document
@@ -995,10 +1057,10 @@
           new-store (a/write-fragment initial-store {:data write-data} fragment entity)
           new-ent (get (:entities new-store) entity)]
       (is (= new-ent (merge old-ent new-ent))))))
-
-(deftest test-cache-fragment-persistence
-  (doseq [test-fragment (keys test-fragments)]
-    (write-fragment-test test-fragment)))
+;
+;(deftest test-cache-fragment-persistence
+;  (doseq [test-fragment (keys test-fragments)]
+;    (write-fragment-test test-fragment)))
 
 (defn read-fragment-test [k]
   (testing (str "testing normalized cache reading for fragment type: " k)
@@ -1010,209 +1072,213 @@
               :partial? false} response)))))
 
 (deftest test-cache-fragment-reading
-  (doseq [test-fragment (keys test-fragments)]
-    (read-fragment-test test-fragment)))
-
-(deftest return-partial
-  (let [entities {"root"
-                  {:object1 {:artemis.mapgraph/ref "aa"}
-                   ::cache  "root"}
-                  "aa"
-                  {:id          "aa"
-                   :stringField "this is a string"
-                   :otherObject {:artemis.mapgraph/ref "bb"}
-                   :otherObjects   [{:artemis.mapgraph/ref "aaa"}
-                                    {:artemis.mapgraph/ref "bbb"}]
-                   :missingObjects [{:artemis.mapgraph/ref "aaa"}
-                                    {:artemis.mapgraph/ref "ccc"}]}
-                  "bb"
-                  {:id "bb"}
-                  "aaa"
-                  {:id "aaa"
-                   :stringField "aaa's string"}
-                  "bbb"
-                  {:id "bbb"}}
-        store (create-store :entities entities
-                            :cache-key ::cache)]
-    (testing "query return-partial"
-      (testing "set to true and all data not present"
-        (let [query (d/parse-document "{
-                                        object1 {
-                                          id
-                                          stringField
-                                          numberField
-                                        }
-                                      }")]
-          (is (= (:data (a/read store query {} :return-partial? true))
-                 {:object1
-                  {:id          "aa"
-                   :stringField "this is a string"}}))))
-      (testing "set to true and all data in a obj within a nested array not present"
-        (let [query (d/parse-document "{
-                                        object1 {
-                                          id
-                                          stringField
-                                          otherObjects {
-                                            id
-                                            stringField
-                                          }
-                                        }
-                                      }")]
-          (is (= (:data (a/read store query {} :return-partial? true))
-                 {:object1
-                  {:id           "aa"
-                   :stringField  "this is a string"
-                   :otherObjects [{:id          "aaa"
-                                   :stringField "aaa's string"}
-                                  {:id "bbb"}]}}))))
-      (testing "set to true and an obj within a nested array not present"
-        (let [query (d/parse-document "{
-                                        object1 {
-                                          id
-                                          stringField
-                                          missingObjects {
-                                            id
-                                          }
-                                        }
-                                      }")]
-          (is (= (:data (a/read store query {} :return-partial? true))
-                 {:object1
-                  {:id          "aa"
-                   :stringField "this is a string"}}))))
-      (testing "set to false nested key doesn't exist"
-        (let [query (d/parse-document "{
-                                        object1 {
-                                          id
-                                          stringField
-                                          doesntExist { slug }
-                                        }
-                                      }")]
-          (is (nil? (:data (a/read store query {}))))))
-      (testing "set to false all data not present"
-        (let [query (d/parse-document "{
-                                        object1 {
-                                          id
-                                          stringField
-                                          numberField
-                                        }
-                                      }")]
-          (is (nil? (:data (a/read store query {}))))))
-      (testing "set to false all data not present deeply"
-        (let [query (d/parse-document "{
-                                        object1 {
-                                          otherObject {
-                                            title
-                                          }
-                                          id
-                                        }
-                                      }")]
-          (is (nil? (:data (a/read store query {}))))))
-      (testing "set to false and all data not present in objs within nested array"
-        (let [query (d/parse-document "{
-                                        object1 {
-                                          id
-                                          stringField
-                                          otherObjects {
-                                            id
-                                            stringField
-                                          }
-                                        }
-                                      }")]
-          (is (nil? (:data (a/read store query {}))))))
-      (testing "set to false and all data not present within nested array"
-        (let [query (d/parse-document "{
-                                        object1 {
-                                          id
-                                          stringField
-                                          missingObjects {
-                                            id
-                                          }
-                                        }
-                                      }")]
-          (is (nil? (:data (a/read store query {})))))))
-    (testing "fragment return-partial"
-      (testing "set to true and all data not present"
-        (let [fragment (d/parse-document "fragment A on object {
-                                           id
-                                           stringField
-                                           numberField
-                                         }")]
-          (is (= (:data (a/read-fragment store fragment "aa" :return-partial? true))
-                 {:id          "aa"
-                  :stringField "this is a string"}))))
-      (testing "set to true and all data not present"
-        (let [fragment (d/parse-document "fragment A on object {
-                                           id
-                                           stringField
-                                           numberField
-                                         }")]
-          (is (nil? (:data (a/read-fragment store fragment "aa")))))))))
-
-(deftest empty-store-test
-  (let [empty-store (create-store :entities {}
-                                  :cache-key ::cache)]
-    (testing "return partial set to true with an empty store"
-      (let [query (d/parse-document "{ nonExistentField }")]
-        (is (nil? (:data (a/read empty-store query {} :return-partial? true))))))
-    (testing "return partial set to galse with an empty store"
-      (let [query (d/parse-document "{ nonExistentField }")]
-        (is (nil? (:data (a/read empty-store query {} :return-partial? false))))))))
-
-(def cache-redirects-map
-  {:book (comp :id :variables)
-   :featuredBook (comp #(when (= % "bob") 1) :slug :variables)})
-
-(deftest cache-redirects
-  (let [entities {"root"
-                  {::cache                           "root"
-                   "author({\"slug\":\"bob\"})"      {:artemis.mapgraph/ref "bob"}
-                   "books"                           [{:artemis.mapgraph/ref 1} {:artemis.mapgraph/ref 2}]}
-
-                  "bob" {:slug "bob"}
-
-                  1 {:id 1 :title "Book 1", :abstract "Lorem ipsum..."}
-                  2 {:id 2 :title "Book 2", :abstract "Lorem ipsum..."}}
-
-        store (create-store :entities entities
-                            :cache-redirects cache-redirects-map
-                            :cache-key ::cache)]
-    (testing "simple redirect"
-      (let [query (d/parse-document "{
-                                      book(id: $id) {
-                                        id
-                                        title
-                                        abstract
-                                      }
-                                    }")]
-        (is (= (:data (a/read store query {:id 1}))
-               {:book {:id 1
-                       :title "Book 1"
-                       :abstract "Lorem ipsum..."}}))
-        (is (= (:data (a/read store query {:id 2}))
-               {:book {:id 2
-                       :title "Book 2"
-                       :abstract "Lorem ipsum..."}}))
-        (is (= (:data (a/read store query {:id 3}))
-               nil))))
-    (testing "deep redirect"
-      (let [query (d/parse-document "{
-                                       author(slug: $slug) {
-                                         featuredBook {
-                                           title
-                                         }
-                                       }
-                                     }")]
-        (is (= (:data (a/read store query {:slug "bob"}))
-               {:author {:featuredBook {:title "Book 1"}}}))))
-    (testing "mixed with non-redirect fields"
-      (let [query (d/parse-document "{
-                                       author(slug: $slug) {
-                                         slug
-                                         featuredBook {
-                                           title
-                                         }
-                                       }
-                                     }")]
-        (is (= (:data (a/read store query {:slug "bob"}))
-               {:author {:slug         "bob"
-                         :featuredBook {:title "Book 1"}}}))))))
+  ;(.log js/console "!!!!! works")
+  ;(read-fragment-test :nested-fragments)
+  (.log js/console "???? broken")
+  (read-fragment-test :nested-union-fragments))
+  ;(doseq [test-fragment (keys test-fragments)]
+  ;  (read-fragment-test test-fragment))
+;
+;(deftest return-partial
+;  (let [entities {"root"
+;                  {:object1 {:artemis.mapgraph/ref "aa"}
+;                   ::cache  "root"}
+;                  "aa"
+;                  {:id          "aa"
+;                   :stringField "this is a string"
+;                   :otherObject {:artemis.mapgraph/ref "bb"}
+;                   :otherObjects   [{:artemis.mapgraph/ref "aaa"}
+;                                    {:artemis.mapgraph/ref "bbb"}]
+;                   :missingObjects [{:artemis.mapgraph/ref "aaa"}
+;                                    {:artemis.mapgraph/ref "ccc"}]}
+;                  "bb"
+;                  {:id "bb"}
+;                  "aaa"
+;                  {:id "aaa"
+;                   :stringField "aaa's string"}
+;                  "bbb"
+;                  {:id "bbb"}}
+;        store (create-store :entities entities
+;                            :cache-key ::cache)]
+;    (testing "query return-partial"
+;      (testing "set to true and all data not present"
+;        (let [query (d/parse-document "{
+;                                        object1 {
+;                                          id
+;                                          stringField
+;                                          numberField
+;                                        }
+;                                      }")]
+;          (is (= (:data (a/read store query {} :return-partial? true))
+;                 {:object1
+;                  {:id          "aa"
+;                   :stringField "this is a string"}}))))
+;      (testing "set to true and all data in a obj within a nested array not present"
+;        (let [query (d/parse-document "{
+;                                        object1 {
+;                                          id
+;                                          stringField
+;                                          otherObjects {
+;                                            id
+;                                            stringField
+;                                          }
+;                                        }
+;                                      }")]
+;          (is (= (:data (a/read store query {} :return-partial? true))
+;                 {:object1
+;                  {:id           "aa"
+;                   :stringField  "this is a string"
+;                   :otherObjects [{:id          "aaa"
+;                                   :stringField "aaa's string"}
+;                                  {:id "bbb"}]}}))))
+;      (testing "set to true and an obj within a nested array not present"
+;        (let [query (d/parse-document "{
+;                                        object1 {
+;                                          id
+;                                          stringField
+;                                          missingObjects {
+;                                            id
+;                                          }
+;                                        }
+;                                      }")]
+;          (is (= (:data (a/read store query {} :return-partial? true))
+;                 {:object1
+;                  {:id          "aa"
+;                   :stringField "this is a string"}}))))
+;      (testing "set to false nested key doesn't exist"
+;        (let [query (d/parse-document "{
+;                                        object1 {
+;                                          id
+;                                          stringField
+;                                          doesntExist { slug }
+;                                        }
+;                                      }")]
+;          (is (nil? (:data (a/read store query {}))))))
+;      (testing "set to false all data not present"
+;        (let [query (d/parse-document "{
+;                                        object1 {
+;                                          id
+;                                          stringField
+;                                          numberField
+;                                        }
+;                                      }")]
+;          (is (nil? (:data (a/read store query {}))))))
+;      (testing "set to false all data not present deeply"
+;        (let [query (d/parse-document "{
+;                                        object1 {
+;                                          otherObject {
+;                                            title
+;                                          }
+;                                          id
+;                                        }
+;                                      }")]
+;          (is (nil? (:data (a/read store query {}))))))
+;      (testing "set to false and all data not present in objs within nested array"
+;        (let [query (d/parse-document "{
+;                                        object1 {
+;                                          id
+;                                          stringField
+;                                          otherObjects {
+;                                            id
+;                                            stringField
+;                                          }
+;                                        }
+;                                      }")]
+;          (is (nil? (:data (a/read store query {}))))))
+;      (testing "set to false and all data not present within nested array"
+;        (let [query (d/parse-document "{
+;                                        object1 {
+;                                          id
+;                                          stringField
+;                                          missingObjects {
+;                                            id
+;                                          }
+;                                        }
+;                                      }")]
+;          (is (nil? (:data (a/read store query {})))))))
+;    (testing "fragment return-partial"
+;      (testing "set to true and all data not present"
+;        (let [fragment (d/parse-document "fragment A on object {
+;                                           id
+;                                           stringField
+;                                           numberField
+;                                         }")]
+;          (is (= (:data (a/read-fragment store fragment "aa" :return-partial? true))
+;                 {:id          "aa"
+;                  :stringField "this is a string"}))))
+;      (testing "set to true and all data not present"
+;        (let [fragment (d/parse-document "fragment A on object {
+;                                           id
+;                                           stringField
+;                                           numberField
+;                                         }")]
+;          (is (nil? (:data (a/read-fragment store fragment "aa")))))))))
+;
+;(deftest empty-store-test
+;  (let [empty-store (create-store :entities {}
+;                                  :cache-key ::cache)]
+;    (testing "return partial set to true with an empty store"
+;      (let [query (d/parse-document "{ nonExistentField }")]
+;        (is (nil? (:data (a/read empty-store query {} :return-partial? true))))))
+;    (testing "return partial set to galse with an empty store"
+;      (let [query (d/parse-document "{ nonExistentField }")]
+;        (is (nil? (:data (a/read empty-store query {} :return-partial? false))))))))
+;
+;(def cache-redirects-map
+;  {:book (comp :id :variables)
+;   :featuredBook (comp #(when (= % "bob") 1) :slug :variables)})
+;
+;(deftest cache-redirects
+;  (let [entities {"root"
+;                  {::cache                           "root"
+;                   "author({\"slug\":\"bob\"})"      {:artemis.mapgraph/ref "bob"}
+;                   "books"                           [{:artemis.mapgraph/ref 1} {:artemis.mapgraph/ref 2}]}
+;
+;                  "bob" {:slug "bob"}
+;
+;                  1 {:id 1 :title "Book 1", :abstract "Lorem ipsum..."}
+;                  2 {:id 2 :title "Book 2", :abstract "Lorem ipsum..."}}
+;
+;        store (create-store :entities entities
+;                            :cache-redirects cache-redirects-map
+;                            :cache-key ::cache)]
+;    (testing "simple redirect"
+;      (let [query (d/parse-document "{
+;                                      book(id: $id) {
+;                                        id
+;                                        title
+;                                        abstract
+;                                      }
+;                                    }")]
+;        (is (= (:data (a/read store query {:id 1}))
+;               {:book {:id 1
+;                       :title "Book 1"
+;                       :abstract "Lorem ipsum..."}}))
+;        (is (= (:data (a/read store query {:id 2}))
+;               {:book {:id 2
+;                       :title "Book 2"
+;                       :abstract "Lorem ipsum..."}}))
+;        (is (= (:data (a/read store query {:id 3}))
+;               nil))))
+;    (testing "deep redirect"
+;      (let [query (d/parse-document "{
+;                                       author(slug: $slug) {
+;                                         featuredBook {
+;                                           title
+;                                         }
+;                                       }
+;                                     }")]
+;        (is (= (:data (a/read store query {:slug "bob"}))
+;               {:author {:featuredBook {:title "Book 1"}}}))))
+;    (testing "mixed with non-redirect fields"
+;      (let [query (d/parse-document "{
+;                                       author(slug: $slug) {
+;                                         slug
+;                                         featuredBook {
+;                                           title
+;                                         }
+;                                       }
+;                                     }")]
+;        (is (= (:data (a/read store query {:slug "bob"}))
+;               {:author {:slug         "bob"
+;                         :featuredBook {:title "Book 1"}}}))))))

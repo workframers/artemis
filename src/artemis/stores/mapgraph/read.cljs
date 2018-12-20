@@ -59,60 +59,69 @@
 
 (defn- pull-join
   "Executes a pull map expression on entity."
-  [{:keys [entities] :as store} result pull-map entity gql-context]
+  [{:keys [entities] :as store} result pull-map entity gql-context ref]
+  (.log js/console "pull joining...")
   (reduce-kv
     (fn [result k join-expr]
-      (let [{:keys [expr entity selection]} (expr-and-entity-for-gql k entity gql-context)
-            k expr]
-        (if (contains? entity k)
-          (let [val (get entity k)]
-            (cond
-              (nil? val)
-              (assoc result k val)
+      (.log js/console "<<")
+      (.log js/console k)
+      (.log js/console join-expr)
+      (.log js/console ">>")
+      (if (= (:node-type k) :inline-fragment)
+        (let [join-exprr (ref-join-expr entities join-expr ref k)
+              pull-res (pull store join-exprr ref gql-context)]
+          (.log js/console pull-res)
+          (merge result pull-res))
+        (let [{:keys [expr entity selection]} (expr-and-entity-for-gql k entity gql-context)
+              k expr]
+          (if (contains? entity k)
+            (let [value (get entity k)]
+              (cond
+                (nil? value)
+                (assoc result k value)
 
-              (ref? store val)
-              (let [pulled (pull store
-                                 (ref-join-expr entities join-expr (get entity expr) selection)
-                                 val
-                                 gql-context)]
-                (if (incomplete? pulled)
-                  (reduced pulled)
-                  (assoc result k pulled)))
+                (ref? store value)
+                (let [join-exprr (ref-join-expr entities join-expr (get entity expr) selection)
+                      _ (.log js/console join-exprr)
+                      pulled (pull store join-exprr value gql-context)]
+                  (if (incomplete? pulled)
+                    (reduced pulled)
+                    (assoc result k pulled)))
 
-              :else
-              (do (when-not (coll? val)
-                    (throw (ex-info "pull map pattern must be to a lookup ref or a collection of lookup refs."
-                                    {:reason            ::pull-join-not-ref
-                                     ::pull-map-pattern pull-map
-                                     ::entity           entity
-                                     ::attribute        k
-                                     ::value            val})))
-                  (assoc result k (like val (map #(pull store
-                                                        (ref-join-expr entities join-expr % selection)
-                                                        %
-                                                        gql-context)
-                                                 val))))))
-          (if-let [redirect (some-> gql-context
-                                    :store
-                                    :cache-redirects
-                                    (get k)
-                                    (apply [{:store (:store store gql-context)
-                                             :parent-entity entity
-                                             :variables (:input-vars gql-context)}]))]
-            ;; cache-redirect found
-            (let [redirected-pull (pull (:store gql-context)
-                                        (ref-join-expr entities join-expr (get entity expr) selection)
-                                        {:artemis.mapgraph/ref redirect}
-                                        gql-context)]
-              (if redirected-pull
-                (assoc result k redirected-pull)
-                ;; redirect root resulted in nothing
-                result))
-            (if (not (:return-partial? gql-context))
-              ;; no value found and don't return partial
-              (reduced ::incomplete-value)
-              ;; no value for key in store and no cache-redirect found
-              (assoc result k ::incomplete-value))))))
+                :else
+                (do (when-not (coll? value)
+                      (throw (ex-info "pull map pattern must be to a lookup ref or a collection of lookup refs."
+                                      {:reason            ::pull-join-not-ref
+                                       ::pull-map-pattern pull-map
+                                       ::entity           entity
+                                       ::attribute        k
+                                       ::value            value})))
+                    (assoc result k (like value (map #(pull store
+                                                            (ref-join-expr entities join-expr % selection)
+                                                            %
+                                                            gql-context)
+                                                     value))))))
+            (if-let [redirect (some-> gql-context
+                                      :store
+                                      :cache-redirects
+                                      (get k)
+                                      (apply [{:store (:store store gql-context)
+                                               :parent-entity entity
+                                               :variables (:input-vars gql-context)}]))]
+              ;; cache-redirect found
+              (let [redirected-pull (pull (:store gql-context)
+                                          (ref-join-expr entities join-expr (get entity expr) selection)
+                                          {:artemis.mapgraph/ref redirect}
+                                          gql-context)]
+                (if redirected-pull
+                  (assoc result k redirected-pull)
+                  ;; redirect root resulted in nothing
+                  result))
+              (if (not (:return-partial? gql-context))
+                ;; no value found and don't return partial
+                (reduced ::incomplete-value)
+                ;; no value for key in store and no cache-redirect found
+                (assoc result k ::incomplete-value)))))))
     result
     pull-map))
 
@@ -138,6 +147,10 @@
      must all be gql selections from the generated ast. There's no support for
      handling pull patterns that are combination of selections and normal keys"
   [{:keys [entities] :as store} pattern lookup-ref & [gql-context]]
+  (.log js/console "pull args:")
+  (.log js/console pattern)
+  (.log js/console lookup-ref)
+
   (let [ref (:artemis.mapgraph/ref lookup-ref)]
     (if (or (nil? ref) (contains? entities ref))
       (when-let [entity (get entities (:artemis.mapgraph/ref lookup-ref))]
@@ -157,7 +170,7 @@
                      (reduced ::incomplete-value))))
 
                (map? expr)
-               (let [map-result (pull-join store result expr entity gql-context)]
+               (let [map-result (pull-join store result expr entity gql-context lookup-ref)]
                  (if (incomplete? map-result)
                    (reduced map-result)
                    map-result))
@@ -209,34 +222,42 @@
 
 (defn read-from-cache
   [document input-vars store return-partial?]
-  (let [first-op (-> document :operation-definitions first)
-        fragments (fragments-map document)
-        context {:input-vars input-vars                      ; variables given to this op
-                 :vars-info (:variable-definitions first-op) ; info about the kinds of variables supported by this op
-                 :return-partial? return-partial?
-                 :store store}
-        pull-pattern (->gql-pull-pattern first-op fragments)
-        result (pull store pull-pattern {:artemis.mapgraph/ref "root"} context)
-        partial? (has-incomplete? result)]
-    {:data (if return-partial?
-             (remove-incomplete result)
-             (when-not partial?
-               (not-empty result)))
-     :partial? partial?}))
+  (try
+    (let [first-op (-> document :operation-definitions first)
+          fragments (fragments-map document)
+          context {:input-vars input-vars                      ; variables given to this op
+                   :vars-info (:variable-definitions first-op) ; info about the kinds of variables supported by this op
+                   :return-partial? return-partial?
+                   :store store}
+          pull-pattern (->gql-pull-pattern first-op fragments)
+          result (pull store pull-pattern {:artemis.mapgraph/ref "root"} context)
+          partial? (has-incomplete? result)]
+      {:data (if return-partial?
+               (remove-incomplete result)
+               (when-not partial?
+                 (not-empty result)))
+       :partial? partial?})
+    (catch :default e
+      (.log js/console e)
+      (throw e))))
 
 (defn read-from-entity
   [document ent-ref store return-partial?]
-  (let [first-frag (-> document :fragment-definitions first)
-        fragments (fragments-map document)
-        context {:input-vars {}
-                 :vars-info nil
-                 :return-partial? return-partial?
-                 :store store}
-        pull-pattern (->gql-pull-pattern first-frag fragments)
-        result (pull store pull-pattern {:artemis.mapgraph/ref ent-ref} context)
-        partial? (has-incomplete? result)]
-    {:data (if return-partial?
-             (remove-incomplete result)
-             (when-not partial?
-               (not-empty result)))
-     :partial? partial?}))
+  (try
+    (let [first-frag (-> document :fragment-definitions first)
+          fragments (fragments-map document)
+          context {:input-vars {}
+                   :vars-info nil
+                   :return-partial? return-partial?
+                   :store store}
+          pull-pattern (->gql-pull-pattern first-frag fragments)
+          result (pull store pull-pattern {:artemis.mapgraph/ref ent-ref} context)
+          partial? (has-incomplete? result)]
+      {:data (if return-partial?
+               (remove-incomplete result)
+               (when-not partial?
+                 (not-empty result)))
+       :partial? partial?})
+    (catch :default e
+      (.log js/console e)
+      (throw e))))

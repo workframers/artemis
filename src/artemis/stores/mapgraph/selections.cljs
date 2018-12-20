@@ -2,6 +2,7 @@
   (:require [clojure.string :as string]
             [artemis.stores.mapgraph.common :refer [get-ref like]]))
 
+
 (def regular-directives #{"include" "skip"})
 (defn aliased? ^boolean [selection]
   (and (keyword-identical? :field (:node-type selection))
@@ -10,6 +11,9 @@
   (boolean (:arguments selection)))
 (defn type-cond? ^boolean [selection]
   (boolean (some :type-condition (:selection-set selection))))
+(defn fragment-spread ^boolean [selection]
+  (boolean (some #(= (:node-type %) :fragment-spread)
+                 (:selection-set selection))))
 (defn custom-dirs? ^boolean [{:keys [directives]}]
   (boolean (some #(not (regular-directives (:name %))) directives)))
 
@@ -77,10 +81,11 @@
   "For a selection, checks for a nested selection-set and returns it. Whenever
   a selection within the selection-set is a type-condition selection (for union
   types) it grabs the correct selection for the the appropriate type."
-  [sel v]
+  [fragments sel v]
   (when-let [sel-set (:selection-set sel)]
     (reduce (fn [acc sel]
-              (if (keyword-identical? (:node-type sel) :inline-fragment)
+              (cond
+                (keyword-identical? (:node-type sel) :inline-fragment)
                 (if-let [typename (:__typename v)]
                   (if (= (:type-name (:type-condition sel)) typename)
                     (into acc (:selection-set sel))
@@ -90,22 +95,31 @@
                                    ::entity    v
                                    ::attribute :__typename
                                    ::value     nil})))
+                (keyword-identical? (:node-type sel) :fragment-spread)
+                (into acc (selection-set fragments (get fragments (:name sel)) v))
+                :else
                 (conj acc sel)))
             []
             sel-set)))
+
+(defn is-field? [expr]
+  (or (:field-name expr)
+      (some :field-name (keys expr))))
 
 (defn ref-join-expr
   "When selection is a union-type selection, resolves the join-expr by looking
   up the typename. Otherwise, just returns the regular join-expr."
   [entities join-expr lookup-ref selection]
-  (if-not (type-cond? selection)
+  (if-not (or (type-cond? selection)
+              (fragment-spread selection))
     join-expr
-    (let [outer-selections (filter :field-name join-expr)] ; fields selected outside of the union fragment
+    (let [outer-selections (filter is-field? join-expr)
+          inner-selections (mapcat identity
+                                   (remove is-field? join-expr))]
       (reduce (fn [acc [condition selection]]
                 (if (= (:type-name (:type-condition condition))
                        (:__typename (get entities (:artemis.mapgraph/ref lookup-ref))))
                   (reduced (into acc selection))
                   acc))
               outer-selections
-              ;; converting map to tuples for easier access of individual key/val
-              (mapcat identity join-expr)))))
+              inner-selections))))
