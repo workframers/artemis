@@ -13,8 +13,8 @@
   sp/GQLStore
   (-read [this document variables return-partial?]
     (read-from-cache document variables this return-partial?))
-  (-read-fragment [this document entity-ref return-partial?]
-    (read-from-entity document entity-ref this return-partial?))
+  (-read-fragment [this document entity-ref variables return-partial? ]
+    (read-from-entity document entity-ref variables this return-partial?))
   (-write [this data document variables]
     (if-let [gql-response (:data data)]
       (write-to-cache document variables gql-response this)

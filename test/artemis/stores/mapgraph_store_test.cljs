@@ -925,48 +925,48 @@
     :read-result {:stringField "this is a string"}}
 
    :nested-fragments
-   {:fragment (d/compose
-               (d/parse-document
-                "fragment A on B {
-                  slug
-                  friends {
-                    ...C
-                  }
-                }")
-               (d/parse-document
-                "fragment C on D {
-                  slug
-                  name
-                  address {
-                    ...D
-                  }
-                }")
-               (d/parse-document
-                "fragment D on E {
-                   zip
-                 }"))
-    :entities {[:slug "abc"]
-               {:slug "abc"
-                :friends [{:artemis.mapgraph/ref [:slug "abcd"]}
-                          {:artemis.mapgraph/ref [:slug "abcde"]}]}
+   {:fragment    (d/compose
+                  (d/parse-document
+                   "fragment A on B {
+                     slug
+                     friends {
+                       ...C
+                     }
+                   }")
+                  (d/parse-document
+                   "fragment C on D {
+                     slug
+                     name
+                     address {
+                       ...D
+                     }
+                   }")
+                  (d/parse-document
+                   "fragment D on E {
+                      zip
+                    }"))
+    :entities    {[:slug "abc"]
+                  {:slug    "abc"
+                   :friends [{:artemis.mapgraph/ref [:slug "abcd"]}
+                             {:artemis.mapgraph/ref [:slug "abcde"]}]}
 
-               [:slug "abcd"]
-               {:slug "abcd"
-                :name "fudge master"
-                :address {:artemis.mapgraph/ref 1}}
+                  [:slug "abcd"]
+                  {:slug    "abcd"
+                   :name    "fudge master"
+                   :address {:artemis.mapgraph/ref 1}}
 
-               1
-               {:id 1 :street "test 1" :zip 11222}
+                  1
+                  {:id 1 :street "test 1" :zip 11222}
 
-               2
-               {:id 2 :street "test 2" :zip 03062}
+                  2
+                  {:id 2 :street "test 2" :zip 03062}
 
-               [:slug "abcde"]
-               {:slug "abcde"
-                :name "fudge colonel"
-                :address {:artemis.mapgraph/ref 2}}}
-    :entity [:slug "abc"]
-    :read-result {:slug "abc"
+                  [:slug "abcde"]
+                  {:slug    "abcde"
+                   :name    "fudge colonel"
+                   :address {:artemis.mapgraph/ref 2}}}
+    :entity      [:slug "abc"]
+    :read-result {:slug    "abc"
                   :friends [{:slug "abcd" :name "fudge master" :address {:zip 11222}}
                             {:slug "abcde" :name "fudge colonel" :address {:zip 03062}}]}}
 
@@ -984,7 +984,34 @@
     :write-data  {:stringField "this is a different string"
                   :numberField 4}
     :read-result {:stringField "this is a string"
-                  :numberField 3}}})
+                  :numberField 3}}
+
+   :fields-with-args
+   {:fragment    (d/parse-document
+                  "fragment A on object {
+                      argField(arg: 1)
+                    }")
+    :entities    {"abcde"
+                  {:id                     "abcde"
+                   "argField({\"arg\":1})" "this is a value 1"
+                   "argField({\"arg\":2})" "this is a value 2"}}
+    :entity      "abcde"
+    :write-data  {:argField "this is a different value"}
+    :read-result {:argField "this is a value 1"}}
+
+   :fields-with-arg-vars
+   {:fragment    (d/parse-document
+                  "fragment A on object {
+                      argField(arg: $argument)
+                    }")
+    :entities    {"abcde"
+                  {:id                     "abcde"
+                   "argField({\"arg\":1})" "this is a value 1"
+                   "argField({\"arg\":2})" "this is a value 2"}}
+    :entity      "abcde"
+    :variables   {:argument 2}
+    :write-data  {:argField "this is a different value"}
+    :read-result {:argField "this is a value 2"}}})
 
 (defn write-fragment-test [k]
   (testing (str "testing normalized cache persistence for fragment type: " k)
@@ -1002,10 +1029,10 @@
 
 (defn read-fragment-test [k]
   (testing (str "testing normalized cache reading for fragment type: " k)
-    (let [{:keys [fragment entity entities read-result]} (get test-fragments k)
+    (let [{:keys [fragment entity entities read-result variables]} (get test-fragments k)
           store (create-store :entities entities
                               :cache-key ::cache)
-          response (a/read-fragment store fragment entity)]
+          response (a/read-fragment store fragment entity :variables variables)]
       (is (= {:data read-result
               :partial? false} response)))))
 

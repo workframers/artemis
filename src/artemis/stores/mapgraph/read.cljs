@@ -225,13 +225,12 @@
      :partial? partial?}))
 
 (defn read-from-entity
-  [document ent-ref store return-partial?]
+  [document ent-ref input-vars store return-partial?]
   (let [first-frag (-> document :fragment-definitions first)
         fragments (fragments-map document)
-        context {:input-vars {}
-                 :vars-info nil
+        context {:input-vars      input-vars
                  :return-partial? return-partial?
-                 :store store}
+                 :store           store}
         pull-pattern (->gql-pull-pattern first-frag fragments)
         result (pull store pull-pattern {:artemis.mapgraph/ref ent-ref} context)
         partial? (has-incomplete? result)]
