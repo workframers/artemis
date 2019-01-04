@@ -16,7 +16,7 @@
     If the query cannot be fulfilled at all, i.e. the data does not exist in
     the store, or if `return-partial?` is `false` and the store is not able to
     fulfill the entire query, should return `nil`.")
-  (-read-fragment [this document entity-ref return-partial?]
+  (-read-fragment [this document entity-ref variables return-partial?]
     "Returns the result of a executing a GraphQL fragment against an entity
     identified by `entity-ref`. The store should return a map of `{:data <any>,
     :partial? <boolean>}`.

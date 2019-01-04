@@ -118,8 +118,9 @@
 (defn read-fragment
   "Calls `artemis.stores.protocols/-read-fragment` on a given store."
   {:added "0.1.0"}
-  [store document entity-ref & {:keys [return-partial?] :or {return-partial? false}}]
-  (sp/-read-fragment store document entity-ref return-partial?))
+  [store document entity-ref & {:keys [variables return-partial?]
+                                :or {return-partial? false}}]
+  (sp/-read-fragment store document entity-ref variables return-partial?))
 
 (s/fdef write
         :args (s/cat :store     ::store
