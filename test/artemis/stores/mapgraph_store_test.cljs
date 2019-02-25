@@ -812,6 +812,32 @@
                 :__typename  "someobject"
                 ::cache      "root.unionObj"}}}
 
+   :nested-union-null
+   {:query    (d/parse-document
+               "{
+                     id
+                     stringField
+                     unionObj {
+                       ... on someobject {
+                         numberField
+                         stringField
+                         __typename
+                       }
+                       ... on someotherobject {
+                         stringField
+                         __typename
+                       }
+                     }
+                   }")
+    :result   {:id          "a"
+               :stringField "this is a string"
+               :unionObj    nil}
+    :entities {"root"
+               {:id          "a"
+                :stringField "this is a string"
+                :unionObj    nil
+                ::cache      "root"}}}
+
    :fragments
    {:query    (d/parse-document
                "query SomeQuery {

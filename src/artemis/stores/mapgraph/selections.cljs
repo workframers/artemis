@@ -81,15 +81,16 @@
   (when-let [sel-set (:selection-set sel)]
     (reduce (fn [acc sel]
               (if (keyword-identical? (:node-type sel) :inline-fragment)
-                (if-let [typename (:__typename v)]
-                  (if (= (:type-name (:type-condition sel)) typename)
-                    (into acc (:selection-set sel))
-                    acc)
-                  (throw (ex-info "union type used, but typename not specified"
-                                  {:reason     ::missing-typename
-                                   ::entity    v
-                                   ::attribute :__typename
-                                   ::value     nil})))
+                (let [typename (:__typename v)]
+                  (if (or (nil? v) typename)
+                    (if (= (:type-name (:type-condition sel)) typename)
+                      (into acc (:selection-set sel))
+                      acc)
+                    (throw (ex-info "union type used, but typename not specified"
+                                    {:reason     ::missing-typename
+                                     ::entity    v
+                                     ::attribute :__typename
+                                     ::value     nil}))))
                 (conj acc sel)))
             []
             sel-set)))
