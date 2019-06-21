@@ -6,7 +6,7 @@
     "test": "shadow-cljs -A:test watch test"
   },
   "devDependencies": {
-    "karma": "^2.0.0",
+    "karma": "^4.0.0",
     "karma-chrome-launcher": "^2.2.0",
     "karma-cljs-test": "^0.1.0",
     "karma-firefox-launcher": "^1.1.0",
