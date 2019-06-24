@@ -2,7 +2,7 @@ version: 2
 
 docker_defaults: &docker_defaults
   docker:
-    - image: 191234350269.dkr.ecr.us-east-1.amazonaws.com/circleci-build:1.7
+    - image: 191234350269.dkr.ecr.us-east-1.amazonaws.com/circleci-build:latest
       environment:
         JAVA_OPTS: "-Xms512m -Xmx3200m"
         LEIN_ROOT: nbd

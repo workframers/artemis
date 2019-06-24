@@ -43,8 +43,8 @@
           [binaryage/devtools "0.9.9"]]}
 
    :docs {:plugins
-          [[lein-codox       "0.10.3"]
-           [lein-asciidoctor "0.1.15" :exclusions [org.slf4j/slf4j-api]]]
+          [[lein-codox       "0.10.7"]
+           [lein-asciidoctor "0.1.17" :exclusions [org.slf4j/slf4j-api]]]
 
           :dependencies
           [[codox-theme-rdash "0.1.2"]]}
