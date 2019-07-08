@@ -216,7 +216,7 @@
                  :return-partial? return-partial?
                  :store store}
         pull-pattern (->gql-pull-pattern first-op fragments)
-        result (pull store pull-pattern {:artemis.mapgraph/ref "root"} context)
+        result (pull store pull-pattern {:artemis.mapgraph/ref [:artemis.mapgraph/generated "root"]} context)
         partial? (has-incomplete? result)]
     {:data (if return-partial?
              (remove-incomplete result)

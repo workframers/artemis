@@ -109,7 +109,7 @@
                               (vector sel-key new-v)))
                           result))]
         (if (or (= stub "root") (not (get-ref formatted store)))
-          (assoc formatted (:cache-key store) stub)
+          (assoc formatted (:cache-key store) [:artemis.mapgraph/generated stub])
           formatted))
       result)))
 
