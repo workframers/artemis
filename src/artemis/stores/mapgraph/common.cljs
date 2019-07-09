@@ -29,3 +29,11 @@
   (->> (:fragment-definitions document)
        (map #(vector (:name %) %))
        (into {})))
+
+(defn ref? [r]
+  (and (map? r)
+       (contains? r :artemis.mapgraph/ref)))
+
+(defn generated? [r]
+  (and (ref? r)
+       (= (some-> r :artemis.mapgraph/ref first) :artemis.mapgraph/generated)))

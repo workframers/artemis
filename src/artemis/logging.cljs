@@ -82,3 +82,6 @@
     (console/info "%query with fetch-policy :local-only will never yield a store update"
                   (css :light :grey :italic))
     (log-store-after! store store)))
+
+(defn warn [statement]
+  (console/warn statement))

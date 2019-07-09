@@ -44,7 +44,7 @@
                        from whence the selection-set will be resolved. Defaults
                        to `{}`.
   - `:cache-key`       The default generic key for the store's cache. Defaults
-                       to `:artemis.stores.mapgrah.core/cache`."
+                       to `:artemis.stores.mapgraph.core/cache`."
   {:added "0.1.0"}
   [& {:keys [id-fn entities cache-redirects cache-key]
       :or   {id-fn           :id

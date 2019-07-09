@@ -1,7 +1,8 @@
 (ns artemis.stores.mapgraph.write
-  (:require [artemis.stores.mapgraph.common :refer [get-ref like map-keys map-vals fragments-map]]
+  (:require [artemis.stores.mapgraph.common :refer [get-ref like map-keys map-vals fragments-map generated? ref?]]
             [clojure.pprint :refer [pprint]]
-            [artemis.stores.mapgraph.selections :as sel :refer [has-args? custom-dirs? aliased?]]))
+            [artemis.stores.mapgraph.selections :as sel :refer [has-args? custom-dirs? aliased?]]
+            [artemis.logging :as logging]))
 
 (defn- into!
   "Transient version of clojure.core/into"
@@ -36,11 +37,11 @@
                 ;; v is a map whose values are entities
                 (do (when-not (= (count refs) (count v))
                       (throw (ex-info "Map values may not mix entities and non-entities"
-                                      {:reason ::mixed-map-vals
+                                      {:reason     ::mixed-map-vals
                                        ::attribute k
-                                       ::value v})))
+                                       ::value     v})))
                     (recur (into! sub-entities values)
-                           (assoc! normalized k (into (empty v)  ; preserve type
+                           (assoc! normalized k (into (empty v) ; preserve type
                                                       (map vector (keys v) refs)))
                            (rest kvs)))
                 ;; v is a plain map
@@ -65,19 +66,38 @@
               (mapcat #(normalize-entities % store)
                       (persistent! sub-entities)))))))
 
+
+(defn resolve-merge [store existing-entities new-entity]
+  (let [ref (get-ref new-entity store)
+        old-entity (->> ref :artemis.mapgraph/ref (get existing-entities))
+        changed (second (clojure.data/diff old-entity new-entity))
+        changed-refs (filter #(some-> % second ref?) changed)
+        inconsistent-refs (filter (fn [[k v]] ;; if the new ref and old ref for this value don't have the same generated state, warn
+                                    (let [old-val (get old-entity k)]
+                                      (and (some? old-val)
+                                           (not= (generated? v)
+                                                 (generated? old-val)))))
+                                  changed-refs)]
+    (doall
+     (for [inconsistent-ref inconsistent-refs]
+       (logging/warn (str "New result at key `"
+                          (first inconsistent-ref)
+                          "` under `"
+                          (:artemis.mapgraph/ref ref)
+                          "` likely to overwrite data"))))
+    (update! existing-entities (:artemis.mapgraph/ref ref) merge new-entity)))
+
 (defn add
   "Returns updated store with generic normalized entities merged in."
   [store & entities]
   (update
-    store
-    :entities
-    (fn transient-entities-update [ent-m]
-      (persistent!
-        (reduce (fn [m e]
-                  (let [ref (get-ref e store)]
-                    (update! m (:artemis.mapgraph/ref ref) merge e)))
-                (transient ent-m)
-                (mapcat #(normalize-entities % store) entities))))))
+   store
+   :entities
+   (fn transient-entities-update [ent-m]
+     (persistent!
+      (reduce (partial resolve-merge store)
+              (transient ent-m)
+              (mapcat #(normalize-entities % store) entities))))))
 
 (defn- name-or-field-name [sel]
   (if (aliased? sel)

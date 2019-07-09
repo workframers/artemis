@@ -2,7 +2,8 @@
   (:require [cljs.test :refer-macros [deftest is testing async]]
             [artemis.core :as a]
             [artemis.document :as d]
-            [artemis.stores.mapgraph.core :refer [create-store]]))
+            [artemis.stores.mapgraph.core :refer [create-store]]
+            [artemis.logging :as logging :refer [warn]]))
 
 (def test-queries
   {:basic
@@ -1269,3 +1270,46 @@
         (is (= (:data (a/read store query {:slug "bob"}))
                {:author {:slug         "bob"
                          :featuredBook {:title "Book 1"}}}))))))
+
+(deftest path-warning
+  (let [log (atom [])]
+    (with-redefs [warn (fn [s] (swap! log conj s))]
+      (testing "warns when result containing a non normalized entity will overwrite a normalized entity"
+        (let [entities {[:artemis.mapgraph/generated "root"]
+                              {::cache                    [:artemis.mapgraph/generated "root"]
+                               "author({\"id\":\"bob\"})" {:artemis.mapgraph/ref "bob"}}
+                        "bob" {:id "bob"}}
+              store (create-store :entities entities
+                                  :cache-redirects cache-redirects-map
+                                  :cache-key ::cache)
+              query (d/parse-document "{
+                                         author(id: \"bob\") {
+                                           name
+                                         }
+                                         ignore
+                                       }")
+              result {:author {:name "Bob Dylan"}
+                      :ignore "should be ignored"}
+              updated-store (a/write store {:data result} query {})]
+          (is (= (first @log)
+                 "New result at key `author({\"id\":\"bob\"})` under `[:artemis.mapgraph/generated \"root\"]` likely to overwrite data"))))
+      (testing "warns when result containing a normalized entity will overwrite a non normalized entity"
+        (let [entities {[:artemis.mapgraph/generated "root"]
+                        {::cache                    [:artemis.mapgraph/generated "root"]
+                         "author({\"id\":\"bob\"})" {:artemis.mapgraph/ref [:artemis.mapgraph/generated "root.author({\"id\":\"bob\"})"]}}
+                        [:artemis.mapgraph/generated "root.author({\"id\":\"bob\"})"]
+                        {:name "Bob Dylan"}}
+              store (create-store :entities entities
+                                  :cache-redirects cache-redirects-map
+                                  :cache-key ::cache)
+              query (d/parse-document "{
+                                         author(id: \"bob\") {
+                                           id
+                                         }
+                                         ignore
+                                       }")
+              result {:author {:id "bob"}
+                      :ignore "should be ignored"}
+              updated-store (a/write store {:data result} query {})]
+          (is (= (second @log)
+                 "New result at key `author({\"id\":\"bob\"})` under `[:artemis.mapgraph/generated \"root\"]` likely to overwrite data")))))))
