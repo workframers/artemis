@@ -1312,4 +1312,35 @@
                       :ignore "should be ignored"}
               updated-store (a/write store {:data result} query {})]
           (is (= (second @log)
-                 "New result at key `author({\"id\":\"bob\"})` under `[:artemis.mapgraph/generated \"root\"]` likely to overwrite data")))))))
+                 "New result at key `author({\"id\":\"bob\"})` under `[:artemis.mapgraph/generated \"root\"]` likely to overwrite data"))))
+      (testing "don't warn for these other cases"
+        (let [entities {[:artemis.mapgraph/generated "root"]
+                              {::cache                    [:artemis.mapgraph/generated "root"]
+                               "author({\"id\":\"bob\"})" {:artemis.mapgraph/ref "bob"}}
+                        "bob" {:id "bob"}}
+              store (create-store :entities entities
+                                  :cache-redirects cache-redirects-map
+                                  :cache-key ::cache)
+              bob-query (d/parse-document "{
+                                             author(id: \"bob\") {
+                                               id
+                                               name
+                                             }
+                                             ignore
+                                           }")
+              bill-query (d/parse-document "{
+                                              author(id: \"bill\") {
+                                                name
+                                              }
+                                              ignore
+                                            }")
+              bob-result {:author {:name "Bob Dylan" :id "bob"}
+                          :ignore "should be ignored"}
+              bill-result {:author {:name "Bill Hicks" :id "bill"}
+                           :ignore "should be ignored"}
+              bill-result-no-id {:author {:name "Bill Hicks"}
+                                 :ignore "should be ignored"}
+              _ (a/write store {:data bob-result} bob-query {})
+              _ (a/write store {:data bill-result} bob-query {})
+              _ (a/write store {:data bill-result-no-id} bill-query {})]
+          (is (= 2 (count @log))))))))
