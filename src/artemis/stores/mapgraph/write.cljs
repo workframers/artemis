@@ -1,6 +1,5 @@
 (ns artemis.stores.mapgraph.write
   (:require [artemis.stores.mapgraph.common :refer [get-ref like map-keys map-vals fragments-map generated? ref?]]
-            [clojure.pprint :refer [pprint]]
             [artemis.stores.mapgraph.selections :as sel :refer [has-args? custom-dirs? aliased?]]
             [artemis.logging :as logging]))
 
@@ -67,7 +66,7 @@
                       (persistent! sub-entities)))))))
 
 
-(defn resolve-merge [store existing-entities new-entity]
+(defn resolve-merge [store display-name existing-entities new-entity]
   (let [ref (get-ref new-entity store)
         old-entity (->> ref :artemis.mapgraph/ref (get existing-entities))
         inconsistent-refs (filter (fn [[k v]] ;; if the new ref and old ref for this value don't have the same generated state, warn
@@ -79,7 +78,9 @@
                                   new-entity)]
     (doall
      (for [inconsistent-ref inconsistent-refs]
-       (logging/warn (str "New result at key `"
+       (logging/warn (str (when display-name
+                            (str display-name " | "))
+                          "New result at key `"
                           (first inconsistent-ref)
                           "` under `"
                           (:artemis.mapgraph/ref ref)
@@ -88,13 +89,13 @@
 
 (defn add
   "Returns updated store with generic normalized entities merged in."
-  [store & entities]
+  [store display-name & entities]
   (update
    store
    :entities
    (fn transient-entities-update [ent-m]
      (persistent!
-      (reduce (partial resolve-merge store)
+      (reduce (partial resolve-merge store display-name)
               (transient ent-m)
               (mapcat #(normalize-entities % store) entities))))))
 
@@ -136,15 +137,19 @@
   "Writes a graphql response to the mapgraph store"
   [document input-vars result store]
   (let [first-op (-> document :operation-definitions first)
+        query-name (get-in first-op [:operation-type :name])
         fragments (fragments-map document)
         context {:input-vars input-vars                     ; variables given to this op
                  :vars-info (:variable-definitions first-op)           ; info about the kinds of variables supported by this op
                  :store store}]
-    (add store (format-for-cache context (:selection-set first-op) result fragments))))
+    (add store
+         (when query-name (str "query:" query-name))
+         (format-for-cache context (:selection-set first-op) result fragments))))
 
 (defn write-to-entity
   [document result [ref-key ref-val] store]
   (let [first-frag (-> document :fragment-definitions first)
+        fragment-name (:name first-frag)
         fragments (fragments-map document)
         context {:store store}
         formatted (-> {ref-key ref-val}
@@ -153,4 +158,6 @@
                                                result
                                                fragments))
                       (dissoc (:cache-key store)))]
-    (add store formatted)))
+    (add store
+         (when fragment-name (str "fragment:" fragment-name))
+         formatted)))
