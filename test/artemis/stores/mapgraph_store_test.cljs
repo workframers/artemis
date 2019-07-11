@@ -1340,7 +1340,12 @@
                            :ignore "should be ignored"}
               bill-result-no-id {:author {:name "Bill Hicks"}
                                  :ignore "should be ignored"}
-              _ (a/write store {:data bob-result} bob-query {})
-              _ (a/write store {:data bill-result} bob-query {})
-              _ (a/write store {:data bill-result-no-id} bill-query {})]
+              ref-query (d/parse-document "{ key { id ref { int } } }")
+              ref-query-different-key (d/parse-document "{ differentKey { id ref { int } } }")
+              _ (-> store
+                    (a/write {:data bob-result} bob-query {})
+                    (a/write {:data bill-result} bob-query {})
+                    (a/write {:data bill-result-no-id} bill-query {})
+                    (a/write {:data {:key {:id 88 :ref {:int 11}}}} ref-query {})
+                    (a/write {:data {:differentKey {:id 88 :ref {:int 11}}}} ref-query-different-key {}))]
           (is (= 2 (count @log))))))))
