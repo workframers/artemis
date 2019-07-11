@@ -2,7 +2,8 @@
   (:require [cljs.test :refer-macros [deftest is testing async]]
             [artemis.core :as a]
             [artemis.document :as d]
-            [artemis.stores.mapgraph.core :refer [create-store]]))
+            [artemis.stores.mapgraph.core :refer [create-store]]
+            [artemis.logging :as logging :refer [warn]]))
 
 (def test-queries
   {:basic
@@ -17,12 +18,12 @@
                :stringField "this is a string"
                :numberField 3
                :nullField   nil}
-    :entities {"root"
+    :entities {[:artemis.mapgraph/generated "root"]
                {:id          "abcd"
                 :stringField "this is a string"
                 :numberField 3
                 :nullField   nil
-                ::cache      "root"}}}
+                ::cache      [:artemis.mapgraph/generated "root"]}}}
 
    :args
    {:query    (d/parse-document
@@ -36,12 +37,12 @@
                :stringField "The arg was 1"
                :numberField 3
                :nullField   nil}
-    :entities {"root"
+    :entities {[:artemis.mapgraph/generated "root"]
                {:id                        "abcd"
                 "stringField({\"arg\":1})" "The arg was 1"
                 :numberField               3
                 :nullField                 nil
-                ::cache                    "root"}}}
+                ::cache                    [:artemis.mapgraph/generated "root"]}}}
 
    :aliased
    {:query    (d/parse-document
@@ -55,12 +56,12 @@
                :aliasedField "this is a string"
                :numberField  3
                :nullField    nil}
-    :entities {"root"
+    :entities {[:artemis.mapgraph/generated "root"]
                {:id          "abcd"
                 :stringField "this is a string"
                 :numberField 3
                 :nullField   nil
-                ::cache      "root"}}}
+                ::cache      [:artemis.mapgraph/generated "root"]}}}
 
    :aliased-with-args
    {:query    (d/parse-document
@@ -76,13 +77,13 @@
                :aliasedField2 "The arg was 2"
                :numberField   3
                :nullField     nil}
-    :entities {"root"
+    :entities {[:artemis.mapgraph/generated "root"]
                {:id                        "abcd"
                 "stringField({\"arg\":1})" "The arg was 1"
                 "stringField({\"arg\":2})" "The arg was 2"
                 :numberField               3
                 :nullField                 nil
-                ::cache                    "root"}}}
+                ::cache                    [:artemis.mapgraph/generated "root"]}}}
 
    :with-vars
    {:query      (d/parse-document
@@ -99,12 +100,12 @@
                  :stringField "This worked"
                  :numberField 5
                  :nullField   nil}
-    :entities   {"root"
+    :entities   {[:artemis.mapgraph/generated "root"]
                  {:id                                             "abcd"
                   :nullField                                      nil
                   "numberField({\"intArg\":5,\"floatArg\":3.14})" 5
                   "stringField({\"arg\":\"This is a string\"})"   "This worked"
-                  ::cache                                         "root"}}}
+                  ::cache                                         [:artemis.mapgraph/generated "root"]}}}
 
    :default-vars
    {:query      (d/parse-document
@@ -124,12 +125,12 @@
                  :stringField "This worked"
                  :numberField 5
                  :nullField   nil}
-    :entities   {"root"
+    :entities   {[:artemis.mapgraph/generated "root"]
                  {:id                                                   "abcd"
                   :nullField                                            nil
                   "numberField({\"intArg\":5,\"floatArg\":3.14})"       5
                   "stringField({\"arg\":\"This is a default string\"})" "This worked"
-                  ::cache                                               "root"}}}
+                  ::cache                                               [:artemis.mapgraph/generated "root"]}}}
 
    :directives
    {:query    (d/parse-document
@@ -143,12 +144,12 @@
                :firstName "James"
                :lastName  "BOND"
                :birthDate "20-05-1940"}
-    :entities {"root"
+    :entities {[:artemis.mapgraph/generated "root"]
                {:id                                                 "abcd"
                 :firstName                                          "James"
                 "lastName@upperCase"                                "BOND"
                 "birthDate@dateFormat({\"format\":\"DD-MM-YYYY\"})" "20-05-1940"
-                ::cache                                             "root"}}}
+                ::cache                                             [:artemis.mapgraph/generated "root"]}}}
 
    :nested
    {:query    (d/parse-document
@@ -172,13 +173,13 @@
                              :stringField "this is a string too"
                              :numberField 3
                              :nullField   nil}}
-    :entities {"root"
+    :entities {[:artemis.mapgraph/generated "root"]
                {:id          "abcd"
                 :stringField "this is a string"
                 :numberField 3
                 :nullField   nil
                 :nestedObj   {:artemis.mapgraph/ref "abcde"}
-                ::cache      "root"}
+                ::cache      [:artemis.mapgraph/generated "root"]}
                "abcde"
                {:id          "abcde"
                 :stringField "this is a string too"
@@ -205,18 +206,18 @@
                :nestedObj   {:stringField "this is a string too"
                              :numberField 3
                              :nullField   nil}}
-    :entities {"root"
+    :entities {[:artemis.mapgraph/generated "root"]
                {:id          "abcd"
                 :stringField "this is a string"
                 :numberField 3
                 :nullField   nil
-                :nestedObj   {:artemis.mapgraph/ref "root.nestedObj"}
-                ::cache      "root"}
-               "root.nestedObj"
+                :nestedObj   {:artemis.mapgraph/ref [:artemis.mapgraph/generated "root.nestedObj"]}
+                ::cache      [:artemis.mapgraph/generated "root"]}
+               [:artemis.mapgraph/generated "root.nestedObj"]
                {:stringField "this is a string too"
                 :numberField 3
                 :nullField   nil
-                ::cache             "root.nestedObj"}}}
+                ::cache      [:artemis.mapgraph/generated "root.nestedObj"]}}}
 
    :nested-with-args
    {:query    (d/parse-document
@@ -238,18 +239,18 @@
                :nestedObj   {:stringField "this is a string too"
                              :numberField 3
                              :nullField   nil}}
-    :entities {"root"
+    :entities {[:artemis.mapgraph/generated "root"]
                {:id                            "abcd"
                 :stringField                   "this is a string"
                 :numberField                   3
                 :nullField                     nil
-                "nestedObj({\"arg\":\"val\"})" {:artemis.mapgraph/ref "root.nestedObj({\"arg\":\"val\"})"}
-                ::cache                        "root"}
-               "root.nestedObj({\"arg\":\"val\"})"
+                "nestedObj({\"arg\":\"val\"})" {:artemis.mapgraph/ref [:artemis.mapgraph/generated "root.nestedObj({\"arg\":\"val\"})"]}
+                ::cache                        [:artemis.mapgraph/generated "root"]}
+               [:artemis.mapgraph/generated "root.nestedObj({\"arg\":\"val\"})"]
                {:stringField "this is a string too"
                 :numberField 3
                 :nullField   nil
-                ::cache             "root.nestedObj({\"arg\":\"val\"})"}}}
+                ::cache      [:artemis.mapgraph/generated "root.nestedObj({\"arg\":\"val\"})"]}}}
 
    :nested-array
    {:query    (d/parse-document
@@ -277,14 +278,14 @@
                               :stringField "this is a string also"
                               :numberField 3
                               :nullField   nil}]}
-    :entities {"root"
+    :entities {[:artemis.mapgraph/generated "root"]
                {:id          "abcd"
                 :stringField "this is a string"
                 :numberField 1
                 :nullField   nil
                 :nestedArray [{:artemis.mapgraph/ref "abcde"}
                               {:artemis.mapgraph/ref "abcdef"}]
-                ::cache      "root"}
+                ::cache      [:artemis.mapgraph/generated "root"]}
                "abcde"
                {:id          "abcde"
                 :stringField "this is a string too"
@@ -319,13 +320,13 @@
                               :numberField 2
                               :nullField   nil}
                              nil]}
-    :entities {"root"
+    :entities {[:artemis.mapgraph/generated "root"]
                {:id          "abcd"
                 :stringField "this is a string"
                 :numberField 1
                 :nullField   nil
                 :nestedArray [{:artemis.mapgraph/ref "abcde"} nil]
-                ::cache      "root"}
+                ::cache      [:artemis.mapgraph/generated "root"]}
                "abcde"
                {:id          "abcde"
                 :stringField "this is a string too"
@@ -372,51 +373,51 @@
                               :numberField       6
                               :deeplyNestedArray []
                               :nullField         nil}]}
-    :entities {"root"
+    :entities {[:artemis.mapgraph/generated "root"]
                {:id          "abcd"
                 :stringField "this is a string"
                 :numberField 1
                 :nullField   nil
-                :nestedArray [{:artemis.mapgraph/ref "root.nestedArray.0"}
-                              {:artemis.mapgraph/ref "root.nestedArray.1"}
-                              {:artemis.mapgraph/ref "root.nestedArray.2"}]
-                ::cache      "root"}
-               "root.nestedArray.0"
-               {:stringField "this is a string too"
-                :numberField 2
-                :nullField   nil
-                :deeplyNestedArray [{:artemis.mapgraph/ref "root.nestedArray.0.deeplyNestedArray.0"}
-                                    {:artemis.mapgraph/ref "root.nestedArray.0.deeplyNestedArray.1"}]
-                ::cache             "root.nestedArray.0"}
-               "root.nestedArray.1"
-               {:stringField "this is a string also"
-                :numberField 3
-                :nullField   nil
-                :deeplyNestedArray [{:artemis.mapgraph/ref "root.nestedArray.1.deeplyNestedArray.0"}
-                                    {:artemis.mapgraph/ref "root.nestedArray.1.deeplyNestedArray.1"}]
-                ::cache             "root.nestedArray.1"}
-               "root.nestedArray.2"
+                :nestedArray [{:artemis.mapgraph/ref [:artemis.mapgraph/generated "root.nestedArray.0"]}
+                              {:artemis.mapgraph/ref [:artemis.mapgraph/generated "root.nestedArray.1"]}
+                              {:artemis.mapgraph/ref [:artemis.mapgraph/generated "root.nestedArray.2"]}]
+                ::cache      [:artemis.mapgraph/generated "root"]}
+               [:artemis.mapgraph/generated "root.nestedArray.0"]
+               {:stringField       "this is a string too"
+                :numberField       2
+                :nullField         nil
+                :deeplyNestedArray [{:artemis.mapgraph/ref [:artemis.mapgraph/generated "root.nestedArray.0.deeplyNestedArray.0"]}
+                                    {:artemis.mapgraph/ref [:artemis.mapgraph/generated "root.nestedArray.0.deeplyNestedArray.1"]}]
+                ::cache            [:artemis.mapgraph/generated "root.nestedArray.0"]}
+               [:artemis.mapgraph/generated "root.nestedArray.1"]
+               {:stringField       "this is a string also"
+                :numberField       3
+                :nullField         nil
+                :deeplyNestedArray [{:artemis.mapgraph/ref [:artemis.mapgraph/generated "root.nestedArray.1.deeplyNestedArray.0"]}
+                                    {:artemis.mapgraph/ref [:artemis.mapgraph/generated "root.nestedArray.1.deeplyNestedArray.1"]}]
+                ::cache            [:artemis.mapgraph/generated "root.nestedArray.1"]}
+               [:artemis.mapgraph/generated "root.nestedArray.2"]
                {:stringField       "this is a string, man"
                 :numberField       6
                 :nullField         nil
                 :deeplyNestedArray []
-                ::cache            "root.nestedArray.2"}
-               "root.nestedArray.0.deeplyNestedArray.0"
+                ::cache            [:artemis.mapgraph/generated "root.nestedArray.2"]}
+               [:artemis.mapgraph/generated "root.nestedArray.0.deeplyNestedArray.0"]
                {:numberField 10
                 :stringField "Foo"
-                ::cache      "root.nestedArray.0.deeplyNestedArray.0"}
-               "root.nestedArray.0.deeplyNestedArray.1"
+                ::cache      [:artemis.mapgraph/generated "root.nestedArray.0.deeplyNestedArray.0"]}
+               [:artemis.mapgraph/generated "root.nestedArray.0.deeplyNestedArray.1"]
                {:numberField 20
                 :stringField "Bar"
-                ::cache      "root.nestedArray.0.deeplyNestedArray.1"}
-               "root.nestedArray.1.deeplyNestedArray.0"
+                ::cache      [:artemis.mapgraph/generated "root.nestedArray.0.deeplyNestedArray.1"]}
+               [:artemis.mapgraph/generated "root.nestedArray.1.deeplyNestedArray.0"]
                {:numberField 30
                 :stringField "Baz"
-                ::cache      "root.nestedArray.1.deeplyNestedArray.0"}
-               "root.nestedArray.1.deeplyNestedArray.1"
+                ::cache      [:artemis.mapgraph/generated "root.nestedArray.1.deeplyNestedArray.0"]}
+               [:artemis.mapgraph/generated "root.nestedArray.1.deeplyNestedArray.1"]
                {:numberField 40
                 :stringField "Boo"
-                ::cache      "root.nestedArray.1.deeplyNestedArray.1"}}}
+                ::cache      [:artemis.mapgraph/generated "root.nestedArray.1.deeplyNestedArray.1"]}}}
 
    :nested-array-without-ids
    {:query    (d/parse-document
@@ -441,24 +442,24 @@
                              {:stringField "this is a string also"
                               :numberField 3
                               :nullField   nil}]}
-    :entities {"root"
+    :entities {[:artemis.mapgraph/generated "root"]
                {:id          "abcd"
                 :stringField "this is a string"
                 :numberField 1
                 :nullField   nil
-                :nestedArray [{:artemis.mapgraph/ref "root.nestedArray.0"}
-                              {:artemis.mapgraph/ref "root.nestedArray.1"}]
-                ::cache      "root"}
-               "root.nestedArray.0"
+                :nestedArray [{:artemis.mapgraph/ref [:artemis.mapgraph/generated "root.nestedArray.0"]}
+                              {:artemis.mapgraph/ref [:artemis.mapgraph/generated "root.nestedArray.1"]}]
+                ::cache      [:artemis.mapgraph/generated "root"]}
+               [:artemis.mapgraph/generated "root.nestedArray.0"]
                {:stringField "this is a string too"
                 :numberField 2
                 :nullField   nil
-                ::cache      "root.nestedArray.0"}
-               "root.nestedArray.1"
+                ::cache      [:artemis.mapgraph/generated "root.nestedArray.0"]}
+               [:artemis.mapgraph/generated "root.nestedArray.1"]
                {:stringField "this is a string also"
                 :numberField 3
                 :nullField   nil
-                ::cache      "root.nestedArray.1"}}}
+                ::cache      [:artemis.mapgraph/generated "root.nestedArray.1"]}}}
 
    :nested-array-with-nulls-and-no-ids
    {:query    (d/parse-document
@@ -481,19 +482,19 @@
                              {:stringField "this is a string also"
                               :numberField 3
                               :nullField   nil}]}
-    :entities {"root"
+    :entities {[:artemis.mapgraph/generated "root"]
                {:id          "abcd"
                 :stringField "this is a string"
                 :numberField 1
                 :nullField   nil
                 :nestedArray [nil
-                              {:artemis.mapgraph/ref "root.nestedArray.1"}]
-                ::cache      "root"}
-               "root.nestedArray.1"
+                              {:artemis.mapgraph/ref [:artemis.mapgraph/generated "root.nestedArray.1"]}]
+                ::cache      [:artemis.mapgraph/generated "root"]}
+               [:artemis.mapgraph/generated "root.nestedArray.1"]
                {:stringField "this is a string also"
                 :numberField 3
                 :nullField   nil
-                ::cache      "root.nestedArray.1"}}}
+                ::cache      [:artemis.mapgraph/generated "root.nestedArray.1"]}}}
 
    :simple-array
    {:query    (d/parse-document
@@ -509,13 +510,13 @@
                :numberField 3
                :nullField   nil
                :simpleArray ["one" "two" "three"]}
-    :entities {"root"
+    :entities {[:artemis.mapgraph/generated "root"]
                {:id          "abcd"
                 :stringField "this is a string"
                 :numberField 3
                 :nullField   nil
                 :simpleArray ["one" "two" "three"]
-                ::cache      "root"}}}
+                ::cache      [:artemis.mapgraph/generated "root"]}}}
 
    :simple-array-with-nulls
    {:query    (d/parse-document
@@ -531,13 +532,13 @@
                :numberField 3
                :nullField   nil
                :simpleArray [nil "two" "three"]}
-    :entities {"root"
+    :entities {[:artemis.mapgraph/generated "root"]
                {:id          "abcd"
                 :stringField "this is a string"
                 :numberField 3
                 :nullField   nil
                 :simpleArray [nil "two" "three"]
-                ::cache      "root"}}}
+                ::cache      [:artemis.mapgraph/generated "root"]}}}
 
    :obj-in-different-paths
    {:query    (d/parse-document
@@ -558,11 +559,11 @@
                :object2 {:id          "aa"
                          :numberField 1}}
 
-    :entities {"root"
+    :entities {[:artemis.mapgraph/generated "root"]
                {:id      "a"
                 :object1 {:artemis.mapgraph/ref "aa"}
                 :object2 {:artemis.mapgraph/ref "aa"}
-                ::cache  "root"}
+                ::cache  [:artemis.mapgraph/generated "root"]}
                "aa"
                {:id          "aa"
                 :stringField "this is a string"
@@ -599,11 +600,11 @@
                          :obj         {:id          "aaa"
                                        :numberField 1}}]}
 
-    :entities {"root"
+    :entities {[:artemis.mapgraph/generated "root"]
                {:id     "a"
                 :array1 [{:artemis.mapgraph/ref "aa"}]
                 :array2 [{:artemis.mapgraph/ref "ab"}]
-                ::cache "root"}
+                ::cache [:artemis.mapgraph/generated "root"]}
                "aa"
                {:id          "aa"
                 :stringField "this is a string"
@@ -636,13 +637,13 @@
                :numberField 3
                :nullField   nil
                :nestedObj   nil}
-    :entities {"root"
+    :entities {[:artemis.mapgraph/generated "root"]
                {:id          "abcd"
                 :stringField "this is a string"
                 :numberField 3
                 :nullField   nil
                 :nestedObj   nil
-                ::cache      "root"}}}
+                ::cache      [:artemis.mapgraph/generated "root"]}}}
 
    :union-array
    {:query    (d/parse-document
@@ -667,10 +668,10 @@
                 {:id          "efgh"
                  :numberField 3
                  :__typename  "otherobject"}]}
-    :entities {"root"
+    :entities {[:artemis.mapgraph/generated "root"]
                {"search({\"text\":\"a\"})" [{:artemis.mapgraph/ref "abcd"}
                                             {:artemis.mapgraph/ref "efgh"}]
-                ::cache                    "root"}
+                ::cache                    [:artemis.mapgraph/generated "root"]}
                "abcd"
                {:id          "abcd"
                 :stringField "this is a string"
@@ -695,18 +696,18 @@
                  :__typename  "someobject"}
                 {:stringField "this is another string"
                  :__typename  "someobject"}]}
-    :entities {"root"
-               {"search({\"text\":\"a\"})" [{:artemis.mapgraph/ref "root.search({\"text\":\"a\"}).0"}
-                                            {:artemis.mapgraph/ref "root.search({\"text\":\"a\"}).1"}]
-                ::cache                    "root"}
-               "root.search({\"text\":\"a\"}).0"
+    :entities {[:artemis.mapgraph/generated "root"]
+               {"search({\"text\":\"a\"})" [{:artemis.mapgraph/ref [:artemis.mapgraph/generated "root.search({\"text\":\"a\"}).0"]}
+                                            {:artemis.mapgraph/ref [:artemis.mapgraph/generated "root.search({\"text\":\"a\"}).1"]}]
+                ::cache                    [:artemis.mapgraph/generated "root"]}
+               [:artemis.mapgraph/generated "root.search({\"text\":\"a\"}).0"]
                {:stringField "this is a string"
                 :__typename  "someobject"
-                ::cache      "root.search({\"text\":\"a\"}).0"}
-               "root.search({\"text\":\"a\"}).1"
+                ::cache      [:artemis.mapgraph/generated "root.search({\"text\":\"a\"}).0"]}
+               [:artemis.mapgraph/generated "root.search({\"text\":\"a\"}).1"]
                {:stringField "this is another string"
                 :__typename  "someobject"
-                ::cache      "root.search({\"text\":\"a\"}).1"}}}
+                ::cache      [:artemis.mapgraph/generated "root.search({\"text\":\"a\"}).1"]}}}
 
    :nested-union
    {:query    (d/parse-document
@@ -733,11 +734,11 @@
                              :stringField "this is a string"
                              :numberField 3
                              :__typename  "object"}}
-    :entities {"root"
+    :entities {[:artemis.mapgraph/generated "root"]
                {:id          "a"
                 :stringField "this is a string"
                 :unionObj    {:artemis.mapgraph/ref "abcd"}
-                ::cache      "root"}
+                ::cache      [:artemis.mapgraph/generated "root"]}
                "abcd"
                {:id          "abcd"
                 :stringField "this is a string"
@@ -768,11 +769,11 @@
                              :stringField "this is a string"
                              :numberField 3
                              :__typename  "object"}}
-    :entities {"root"
+    :entities {[:artemis.mapgraph/generated "root"]
                {:id          "a"
                 :stringField "this is a string"
                 :unionObj    {:artemis.mapgraph/ref "abcd"}
-                ::cache      "root"}
+                ::cache      [:artemis.mapgraph/generated "root"]}
                "abcd"
                {:id          "abcd"
                 :stringField "this is a string"
@@ -801,16 +802,16 @@
                :unionObj    {:stringField "this is a string"
                              :numberField 3
                              :__typename  "someobject"}}
-    :entities {"root"
+    :entities {[:artemis.mapgraph/generated "root"]
                {:id          "a"
                 :stringField "this is a string"
-                :unionObj    {:artemis.mapgraph/ref "root.unionObj"}
-                ::cache      "root"}
-               "root.unionObj"
+                :unionObj    {:artemis.mapgraph/ref [:artemis.mapgraph/generated "root.unionObj"]}
+                ::cache      [:artemis.mapgraph/generated "root"]}
+               [:artemis.mapgraph/generated "root.unionObj"]
                {:stringField "this is a string"
                 :numberField 3
                 :__typename  "someobject"
-                ::cache      "root.unionObj"}}}
+                ::cache      [:artemis.mapgraph/generated "root.unionObj"]}}}
 
    :nested-union-null
    {:query    (d/parse-document
@@ -832,11 +833,11 @@
     :result   {:id          "a"
                :stringField "this is a string"
                :unionObj    nil}
-    :entities {"root"
+    :entities {[:artemis.mapgraph/generated "root"]
                {:id          "a"
                 :stringField "this is a string"
                 :unionObj    nil
-                ::cache      "root"}}}
+                ::cache      [:artemis.mapgraph/generated "root"]}}}
 
    :fragments
    {:query    (d/parse-document
@@ -852,11 +853,11 @@
     :result   {:id          "abcd"
                :stringField "this is a string"
                :numberField 3}
-    :entities {"root"
+    :entities {[:artemis.mapgraph/generated "root"]
                {:id          "abcd"
                 :stringField "this is a string"
                 :numberField 3
-                ::cache      "root"}}}
+                ::cache      [:artemis.mapgraph/generated "root"]}}}
 
    :nested-fragments
    {:query    (d/parse-document
@@ -876,10 +877,10 @@
                :nestedObj {:id          "abcde"
                            :stringField "this is a string"
                            :numberField 3}}
-    :entities {"root"
+    :entities {[:artemis.mapgraph/generated "root"]
                {:id        "abcd"
                 :nestedObj {:artemis.mapgraph/ref "abcde"}
-                ::cache    "root"}
+                ::cache    [:artemis.mapgraph/generated "root"]}
                "abcde"
                {:id          "abcde"
                 :stringField "this is a string"
@@ -904,11 +905,11 @@
     :result   {:id          "abcd"
                :stringField "this is a string"
                :numberField 3}
-    :entities {"root"
+    :entities {[:artemis.mapgraph/generated "root"]
                {:id          "abcd"
                 :stringField "this is a string"
                 :numberField 3
-                ::cache      "root"}}}})
+                ::cache      [:artemis.mapgraph/generated "root"]}}}})
 
 (defn write-test [k]
   (testing (str "testing normalized cache persistence for query type: " k)
@@ -945,7 +946,7 @@
                    :stringField "this is a string"
                    :numberField 3
                    :nullField   nil
-                   ::cache      "root"}}
+                   ::cache      [:artemis.mapgraph/generated "root"]}}
     :entity      "abcde"
     :write-data  {:stringField "this is a different string"}
     :read-result {:stringField "this is a string"}}
@@ -1067,13 +1068,13 @@
     (read-fragment-test test-fragment)))
 
 (deftest return-partial
-  (let [entities {"root"
+  (let [entities {[:artemis.mapgraph/generated "root"]
                   {:object1 {:artemis.mapgraph/ref "aa"}
-                   ::cache  "root"}
+                   ::cache  [:artemis.mapgraph/generated "root"]}
                   "aa"
-                  {:id          "aa"
-                   :stringField "this is a string"
-                   :otherObject {:artemis.mapgraph/ref "bb"}
+                  {:id             "aa"
+                   :stringField    "this is a string"
+                   :otherObject    {:artemis.mapgraph/ref "bb"}
                    :otherObjects   [{:artemis.mapgraph/ref "aaa"}
                                     {:artemis.mapgraph/ref "bbb"}]
                    :missingObjects [{:artemis.mapgraph/ref "aaa"}
@@ -1081,7 +1082,7 @@
                   "bb"
                   {:id "bb"}
                   "aaa"
-                  {:id "aaa"
+                  {:id          "aaa"
                    :stringField "aaa's string"}
                   "bbb"
                   {:id "bbb"}}
@@ -1216,15 +1217,15 @@
    :featuredBook (comp #(when (= % "bob") 1) :slug :variables)})
 
 (deftest cache-redirects
-  (let [entities {"root"
-                  {::cache                           "root"
-                   "author({\"slug\":\"bob\"})"      {:artemis.mapgraph/ref "bob"}
-                   "books"                           [{:artemis.mapgraph/ref 1} {:artemis.mapgraph/ref 2}]}
+  (let [entities {[:artemis.mapgraph/generated "root"]
+                        {::cache                      [:artemis.mapgraph/generated "root"]
+                         "author({\"slug\":\"bob\"})" {:artemis.mapgraph/ref "bob"}
+                         "books"                      [{:artemis.mapgraph/ref 1} {:artemis.mapgraph/ref 2}]}
 
                   "bob" {:slug "bob"}
 
-                  1 {:id 1 :title "Book 1", :abstract "Lorem ipsum..."}
-                  2 {:id 2 :title "Book 2", :abstract "Lorem ipsum..."}}
+                  1     {:id 1 :title "Book 1", :abstract "Lorem ipsum..."}
+                  2     {:id 2 :title "Book 2", :abstract "Lorem ipsum..."}}
 
         store (create-store :entities entities
                             :cache-redirects cache-redirects-map
@@ -1269,3 +1270,77 @@
         (is (= (:data (a/read store query {:slug "bob"}))
                {:author {:slug         "bob"
                          :featuredBook {:title "Book 1"}}}))))))
+
+(deftest path-warning
+  (let [log (atom [])]
+    (with-redefs [warn (fn [s] (swap! log conj s))]
+      (testing "warns when result containing a non normalized entity will overwrite a normalized entity"
+        (let [entities {[:artemis.mapgraph/generated "root"]
+                              {::cache                    [:artemis.mapgraph/generated "root"]
+                               "author({\"id\":\"bob\"})" {:artemis.mapgraph/ref "bob"}}
+                        "bob" {:id "bob"}}
+              store (create-store :entities entities
+                                  :cache-redirects cache-redirects-map
+                                  :cache-key ::cache)
+              query (d/parse-document "{
+                                         author(id: \"bob\") {
+                                           name
+                                         }
+                                         ignore
+                                       }")
+              result {:author {:name "Bob Dylan"}
+                      :ignore "should be ignored"}
+              updated-store (a/write store {:data result} query {})]
+          (is (= (first @log)
+                 "New result at key `author({\"id\":\"bob\"})` under `[:artemis.mapgraph/generated \"root\"]` likely to overwrite data"))))
+      (testing "warns when result containing a normalized entity will overwrite a non normalized entity"
+        (let [entities {[:artemis.mapgraph/generated "root"]
+                        {::cache                    [:artemis.mapgraph/generated "root"]
+                         "author({\"id\":\"bob\"})" {:artemis.mapgraph/ref [:artemis.mapgraph/generated "root.author({\"id\":\"bob\"})"]}}
+                        [:artemis.mapgraph/generated "root.author({\"id\":\"bob\"})"]
+                        {:name "Bob Dylan"}}
+              store (create-store :entities entities
+                                  :cache-redirects cache-redirects-map
+                                  :cache-key ::cache)
+              query (d/parse-document "{
+                                         author(id: \"bob\") {
+                                           id
+                                         }
+                                         ignore
+                                       }")
+              result {:author {:id "bob"}
+                      :ignore "should be ignored"}
+              updated-store (a/write store {:data result} query {})]
+          (is (= (second @log)
+                 "New result at key `author({\"id\":\"bob\"})` under `[:artemis.mapgraph/generated \"root\"]` likely to overwrite data"))))
+      (testing "don't warn for these other cases"
+        (let [entities {[:artemis.mapgraph/generated "root"]
+                              {::cache                    [:artemis.mapgraph/generated "root"]
+                               "author({\"id\":\"bob\"})" {:artemis.mapgraph/ref "bob"}}
+                        "bob" {:id "bob"}}
+              store (create-store :entities entities
+                                  :cache-redirects cache-redirects-map
+                                  :cache-key ::cache)
+              bob-query (d/parse-document "{
+                                             author(id: \"bob\") {
+                                               id
+                                               name
+                                             }
+                                             ignore
+                                           }")
+              bill-query (d/parse-document "{
+                                              author(id: \"bill\") {
+                                                name
+                                              }
+                                              ignore
+                                            }")
+              bob-result {:author {:name "Bob Dylan" :id "bob"}
+                          :ignore "should be ignored"}
+              bill-result {:author {:name "Bill Hicks" :id "bill"}
+                           :ignore "should be ignored"}
+              bill-result-no-id {:author {:name "Bill Hicks"}
+                                 :ignore "should be ignored"}
+              _ (a/write store {:data bob-result} bob-query {})
+              _ (a/write store {:data bill-result} bob-query {})
+              _ (a/write store {:data bill-result-no-id} bill-query {})]
+          (is (= 2 (count @log))))))))
