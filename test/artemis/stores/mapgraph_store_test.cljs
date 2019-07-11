@@ -1282,7 +1282,7 @@
               store (create-store :entities entities
                                   :cache-redirects cache-redirects-map
                                   :cache-key ::cache)
-              query (d/parse-document "{
+              query (d/parse-document "query GetAuthor1 {
                                          author(id: \"bob\") {
                                            name
                                          }
@@ -1292,7 +1292,7 @@
                       :ignore "should be ignored"}
               updated-store (a/write store {:data result} query {})]
           (is (= (first @log)
-                 "New result at key `author({\"id\":\"bob\"})` under `[:artemis.mapgraph/generated \"root\"]` likely to overwrite data"))))
+                 "query:GetAuthor1 | New result at key `author({\"id\":\"bob\"})` under `[:artemis.mapgraph/generated \"root\"]` likely to overwrite data"))))
       (testing "warns when result containing a normalized entity will overwrite a non normalized entity"
         (let [entities {[:artemis.mapgraph/generated "root"]
                         {::cache                    [:artemis.mapgraph/generated "root"]
@@ -1302,7 +1302,7 @@
               store (create-store :entities entities
                                   :cache-redirects cache-redirects-map
                                   :cache-key ::cache)
-              query (d/parse-document "{
+              query (d/parse-document "query GetAuthor2 {
                                          author(id: \"bob\") {
                                            id
                                          }
@@ -1312,7 +1312,7 @@
                       :ignore "should be ignored"}
               updated-store (a/write store {:data result} query {})]
           (is (= (second @log)
-                 "New result at key `author({\"id\":\"bob\"})` under `[:artemis.mapgraph/generated \"root\"]` likely to overwrite data"))))
+                 "query:GetAuthor2 | New result at key `author({\"id\":\"bob\"})` under `[:artemis.mapgraph/generated \"root\"]` likely to overwrite data"))))
       (testing "don't warn for these other cases"
         (let [entities {[:artemis.mapgraph/generated "root"]
                               {::cache                    [:artemis.mapgraph/generated "root"]
