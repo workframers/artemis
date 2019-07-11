@@ -70,14 +70,13 @@
 (defn resolve-merge [store existing-entities new-entity]
   (let [ref (get-ref new-entity store)
         old-entity (->> ref :artemis.mapgraph/ref (get existing-entities))
-        changed (second (clojure.data/diff old-entity new-entity))
-        changed-refs (filter #(some-> % second ref?) changed)
         inconsistent-refs (filter (fn [[k v]] ;; if the new ref and old ref for this value don't have the same generated state, warn
-                                    (let [old-val (get old-entity k)]
-                                      (and (some? old-val)
-                                           (not= (generated? v)
-                                                 (generated? old-val)))))
-                                  changed-refs)]
+                                    (when (ref? v)
+                                      (let [old-val (get old-entity k)]
+                                        (and (some? old-val)
+                                             (not= (generated? v)
+                                                   (generated? old-val))))))
+                                  new-entity)]
     (doall
      (for [inconsistent-ref inconsistent-refs]
        (logging/warn (str "New result at key `"
