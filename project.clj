@@ -1,4 +1,4 @@
-(defproject com.workframe/artemis "0.1.0-SNAPSHOT"
+(defproject com.workframe/artemis "0.2.0"
   :description "A minimal ClojureScript GraphQL client"
   :url         "https://github.com/workframers/artemis"
   :license     {:name "Apache License, Version 2.0"
