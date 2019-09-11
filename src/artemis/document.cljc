@@ -88,7 +88,7 @@
     (merge s1 s2)))
 
 (defn- merge-selections [selections]
-  (let [grouped (group-by :field-name selections)]
+  (let [grouped (group-by #(or (:name %) (:field-name %)) selections)]
     (mapv
      (fn [[_ selections]]
        (if (> (count selections) 1)

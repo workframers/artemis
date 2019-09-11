@@ -1,6 +1,6 @@
 (ns artemis.stores.mapgraph.read
   (:require [clojure.set :refer [rename-keys]]
-            [artemis.stores.mapgraph.common :refer [like get-ref map-keys fragments-map]]
+            [artemis.stores.mapgraph.common :refer [like get-ref extract-name map-keys fragments-map]]
             [artemis.stores.mapgraph.selections :as sel :refer [field-key aliased? ref-join-expr]]))
 
 (defn- entity?
@@ -27,7 +27,7 @@
   [selection context ent]
   (-> ent
       (map-keys #(if (keyword? %) (-> % name keyword) %))
-      (rename-keys {(field-key selection context) (-> selection :field-name keyword)})))
+      (rename-keys {(field-key selection context) (-> selection extract-name keyword)})))
 
 (defn- ->gql-pull-pattern [{:keys [selection-set] :as field-or-op} fragments]
   "Returns a pull pattern comprised of selections instead of keywords"
@@ -48,7 +48,7 @@
   [expr entity gql-context]
   (let [selection (when (selection? expr) expr)
         expr (if (and gql-context selection)
-               (-> selection :field-name keyword)
+               (-> selection extract-name keyword)
                expr)
         entity (if gql-context
                  (modify-entity-for-gql selection gql-context entity)

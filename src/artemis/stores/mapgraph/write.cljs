@@ -118,7 +118,7 @@
                                   _ (when (nil? sel-key)
                                       (throw (ex-info (str "Key `" k "` found in response, but not in document.")
                                                       {:reason ::key-not-in-document
-                                                       ::atribute k
+                                                       ::attribute k
                                                        ::value v})))
                                   nsed-key (str stub "." (name sel-key))
                                   new-v (if (sequential? v)
