@@ -80,7 +80,6 @@
                                    a
                                    ...Fields
                                  }
-
                                 fragment Fields on Thing { b ...MoreFields }
                                 fragment MoreFields on Thing { c }")]
       (is (= {:operation-definitions

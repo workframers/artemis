@@ -1,6 +1,6 @@
 (ns artemis.stores.mapgraph.selections
   (:require [clojure.string :as string]
-            [artemis.stores.mapgraph.common :refer [get-ref like]]))
+            [artemis.stores.mapgraph.common :refer [get-ref like extract-name]]))
 
 (def regular-directives #{"include" "skip"})
 (defn aliased? ^boolean [selection]
@@ -54,7 +54,7 @@
 (defn field-key [selection context]
   "Returns a generated string key if selection is not a plain data attribute
    otherwise return keywordized field name"
-  (cond-> (:field-name selection)
+  (cond-> (extract-name selection)
           (has-args? selection) (attach-args-to-key context selection)
           (custom-dirs? selection) (attach-directive-to-key context selection)
           (not (or (has-args? selection) (custom-dirs? selection)))

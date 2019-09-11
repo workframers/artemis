@@ -25,6 +25,10 @@
     (set? type-coll) (into (empty type-coll) s)  ; handles sorted-set
     :else s))
 
+(defn extract-name [selection]
+  "Uses either the selection :name (for aliases) or :field-name (for non-aliases)."
+  (or (:name selection) (:field-name selection)))
+
 (defn fragments-map [document]
   (->> (:fragment-definitions document)
        (map #(vector (:name %) %))
