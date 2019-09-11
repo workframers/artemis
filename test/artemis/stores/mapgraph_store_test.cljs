@@ -57,11 +57,11 @@
                :numberField  3
                :nullField    nil}
     :entities {[:artemis.mapgraph/generated "root"]
-               {:id          "abcd"
-                :stringField "this is a string"
-                :numberField 3
-                :nullField   nil
-                ::cache      [:artemis.mapgraph/generated "root"]}}}
+               {:id           "abcd"
+                :aliasedField "this is a string"
+                :numberField  3
+                :nullField    nil
+                ::cache       [:artemis.mapgraph/generated "root"]}}}
 
    :aliased-with-args
    {:query    (d/parse-document
@@ -79,8 +79,8 @@
                :nullField     nil}
     :entities {[:artemis.mapgraph/generated "root"]
                {:id                        "abcd"
-                "stringField({\"arg\":1})" "The arg was 1"
-                "stringField({\"arg\":2})" "The arg was 2"
+                "aliasedField1({\"arg\":1})" "The arg was 1"
+                "aliasedField2({\"arg\":2})" "The arg was 2"
                 :numberField               3
                 :nullField                 nil
                 ::cache                    [:artemis.mapgraph/generated "root"]}}}
