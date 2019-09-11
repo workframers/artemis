@@ -78,12 +78,12 @@
                :numberField   3
                :nullField     nil}
     :entities {[:artemis.mapgraph/generated "root"]
-               {:id                        "abcd"
+               {:id                          "abcd"
                 "aliasedField1({\"arg\":1})" "The arg was 1"
                 "aliasedField2({\"arg\":2})" "The arg was 2"
-                :numberField               3
-                :nullField                 nil
-                ::cache                    [:artemis.mapgraph/generated "root"]}}}
+                :numberField                 3
+                :nullField                   nil
+                ::cache                      [:artemis.mapgraph/generated "root"]}}}
 
    :with-vars
    {:query      (d/parse-document
