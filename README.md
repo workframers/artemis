@@ -4,10 +4,11 @@
 
 A minimal ClojureScript GraphQL client.
 
-Guides and API Docs: http://docs.workframe.com/artemis/current/
+Guides and API Docs: https://cljdoc.org/d/com.workframe/artemis/0.1.0-SNAPSHOT/doc/readme
 
 ## License
 
 Copyright © 2018 Workframe, Inc.
 
 Distributed under the Apache License, Version 2.0.
+
